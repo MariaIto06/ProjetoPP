@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import mssql from 'mssql';
+import cors from 'cors';
 
 const porta = process.env.PORTA;
 const stringSQL = process.env.CONNECTION_STRING;

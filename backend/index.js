@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import mssql from 'mssql';
+import cors from 'cors';
 
 const porta = process.env.PORTA;
 const stringSQL = process.env.CONNECTION_STRING;
@@ -20,7 +21,7 @@ async function conectaBD() {
     }
 }
 
-// definir rotas
+// definir rotas da api
 app.get('/laboratorios', async (req, res) => {
     const conexao = await conectaBD();
     const result = await conexao.query("SELECT * FROM reservas.laboratorios");

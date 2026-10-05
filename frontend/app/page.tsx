@@ -26,9 +26,4 @@ export default function Home() {
         </ul>
       </nav>
     </main>
-  );
-<<<<<<< HEAD
-}
-=======
-}
->>>>>>> 1122eff0634ca1adb9add61077c0d59409253675
+  ) }; 

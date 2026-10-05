@@ -75,7 +75,7 @@ app.post('/usuario', async(req, res)=>{
         INSERT INTO reservas.usuario
         (cpf, nome, datanascimento, celular, email, login, senha, dataCadastro)
         VALUES
-        ('${cpf}', '${nome}', ${datanascimento}, '${celular}',${email},${login},${senha}, ${dataCadastro},)
+        ('${cpf}', '${nome}', ${datanascimento}, '${celular}',${email},${login},${senha}, ${dataCadastro})
     `);
 
     res.json({ message: "Laboratório cadastrado com sucesso!" });

@@ -63,7 +63,7 @@ export default function Usuario() {
 
     try {
       const response = await fetch(
-        "http://localhost:8080/usuarios",
+        "http://localhost:8080/usuario",
         {
           method: "POST",
           headers: {
@@ -217,6 +217,7 @@ export default function Usuario() {
           <p>Celular: {registro.celular}</p>
           <p>E-mail: {registro.email}</p>
           <p>Login: {registro.login}</p>
+          <p>Data de cadastro: {registro.datacadastro}</p>
         </div>
       ))}
     </div>

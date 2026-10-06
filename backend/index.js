@@ -69,17 +69,29 @@ app.get('/usuarios', async (req, res) => {
 });
 
 app.post('/usuario', async(req, res)=>{
-    const {cpf, nome, datanascimento, celular, email, login, senha, dataCadastro } = req.body;
-    const conexao = await conectaBD();
-    const result = await conexao.query(`
-        INSERT INTO reservas.usuario
-        (cpf, nome, datanascimento, celular, email, login, senha, dataCadastro)
-        VALUES
-        ('${cpf}', '${nome}', ${datanascimento}, '${celular}',${email},${login},${senha}, ${dataCadastro})
-    `);
+    try{
+        const {cpf, nome, datanascimento, celular, email, login, senha } = req.body;
 
-    res.json({ message: "Laboratório cadastrado com sucesso!" });
+        console.log("Dados recebidos");
+        console.log(req.body);
 
+        const conexao = await conectaBD();
+        
+        await conexao.query(`
+            INSERT INTO reservas.usuario
+            (cpf, nome, datanascimento, celular, email, login, senha)
+            VALUES
+            ('${cpf}', '${nome}', '${datanascimento}', '${celular}','${email}','${login}','${senha}')
+        `);
+
+        res.json({ message: "Laboratório cadastrado com sucesso!" });
+    }catch (erro){
+        console.log("Erro ao cadastrar usuario", erro);
+
+        res.status(500).json({
+            message: "Erro ao cadastrar usuario"
+        });
+    }
 });
 app.get('/salas', async (req, res) => {
     const conexao = await conectaBD();

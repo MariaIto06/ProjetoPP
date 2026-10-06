@@ -62,7 +62,7 @@ export default function Laboratorio() {
 
     try {
       const response = await fetch(
-        "http://localhost:8080/laboratorios",
+        "http://localhost:8080/laboratorio",
         {
           method: "POST",
           headers: {

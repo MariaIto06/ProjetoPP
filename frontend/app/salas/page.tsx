@@ -1,84 +1,145 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import estilos from "./salas.module.css";
 
 interface Salas {
-  id: number;
-  codigo: string;
-  nome: string;
-  capacidade: number;
-  localizacao: string;
+id: number;
+codigo: string;
+nome: string;
+capacidade: number;
+localizacao: string;
 }
 
 export default function Salas() {
-  const [dados, setDados] = useState<Salas[]>([]);
+const [dados, setDados] = useState<Salas[]>([]);
 
-  async function carregarSalas(){
-    const resposta = await fetch("http://localhost:8080/salas");
-    const dadosRecebidos = await resposta.json();
+async function carregarSalas() {
+const resposta = await fetch("http://localhost:8080/salas");
+const dadosRecebidos = await resposta.json();
 
-    setDados(dadosRecebidos);
-  }
 
-  useEffect(() => {
-    carregarSalas();
-  },[]);
+setDados(dadosRecebidos);
 
-  async function cadastrar(evento: FormEvent<HTMLFormElement>) {
-    evento.preventDefault();
 
-    const formulario = evento.currentTarget;
-    const formData = new FormData(formulario);
+}
 
-    const novaSala = {
-      codigo: formData.get("codigo"),
-      nome: formData.get("nome"),
-      capacidade: Number(formData.get("capacidade")),
-      localizacao: formData.get("localizacao")
-    };
+useEffect(() => {
+carregarSalas();
+}, []);
 
-    await fetch("http://localhost:8080/sala", {
-        method: "POST",
-        headers: {
-          "content-Type": "application/json"
-        },
-        body: JSON.stringify(novaSala)
-      });
+async function cadastrar(
+evento: React.SyntheticEvent<HTMLFormElement>
+) {
+evento.preventDefault();
 
-    await carregarSalas();
 
-    formulario.reset();
+const formulario = evento.currentTarget;
+const formData = new FormData(formulario);
 
-  }
-  return (
-    <main>
-      <h1>Cadastro de Salas</h1>
-      <form onSubmit={cadastrar}>
+const novaSala = {
+  codigo: formData.get("codigo"),
+  nome: formData.get("nome"),
+  capacidade: Number(formData.get("capacidade")),
+  localizacao: formData.get("localizacao"),
+};
+
+await fetch("http://localhost:8080/sala", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(novaSala),
+});
+
+await carregarSalas();
+
+formulario.reset();
+
+
+}
+
+return ( <div className={estilos.pagina}> 
+  <h2 className={estilos.titulo}>
+  Cadastro de Salas 
+  </h2>
+
+  <div className={estilos.container}>
+    <form onSubmit={cadastrar}>
+      <div className={estilos.campo}>
         <label>Código</label>
-        <input type="text" name="codigo" />
 
+        <input
+          name="codigo"
+          required
+          className={estilos.input}
+        />
+      </div>
+
+      <div className={estilos.campo}>
         <label>Nome</label>
-        <input type="text" name="nome" />
 
+        <input
+          name="nome"
+          required
+          className={estilos.input}
+        />
+      </div>
+
+      <div className={estilos.campo}>
         <label>Capacidade</label>
-        <input type="number" name="capacidade" />
 
+        <input
+          name="capacidade"
+          type="number"
+          required
+          className={estilos.input}
+        />
+      </div>
+
+      <div className={estilos.campo}>
         <label>Localização</label>
-        <input type="text" name="localizacao" />
 
-        <button type="submit">Cadastrar</button>
-      </form>
+        <input
+          name="localizacao"
+          required
+          className={estilos.input}
+        />
+      </div>
 
-      <h2>Salas cadastradas</h2>
+      <button
+        type="submit"
+        className={estilos.botao}
+      >
+        Cadastrar
+      </button>
+    </form>
+  </div>
 
-      {dados.map((sala) => (
-        <div key={sala.id}>
-          <p>{sala.codigo}</p>
-          <p>{sala.nome}</p>
-          <p>{sala.capacidade}</p>
-          <p>{sala.localizacao}</p>
-        </div>
-      ))}
-    </main>
-  );
+  <h2 className={estilos.titulo}>
+    Salas cadastradas
+  </h2>
+
+  <div className={estilos.lista}>
+    {dados.map((sala) => (
+      <div
+        key={sala.id}
+        className={estilos.card}
+      >
+        <h4>ID: {sala.id}</h4>
+
+        <p>Código: {sala.codigo}</p>
+        <p>Nome: {sala.nome}</p>
+        <p>Capacidade: {sala.capacidade}</p>
+        <p>Localização: {sala.localizacao}</p>
+      </div>
+    ))}
+  </div>
+
+  <br />
+  <br />
+</div>
+
+
+);
 }

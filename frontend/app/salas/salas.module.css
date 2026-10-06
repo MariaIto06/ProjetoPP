@@ -1,0 +1,63 @@
+.pagina {
+padding: 0;
+
+}
+
+.titulo {
+text-align: center;
+margin-top: 40px;
+margin-bottom: 20px;
+font-size: 24px;
+font-weight: bold;
+}
+
+.container {
+margin: 0 auto;
+background-color: #dbdbdb;
+max-width: 500px;
+padding: 5px;
+border-radius: 10px;
+
+}
+
+.campo {
+margin-bottom: 15px;
+}
+
+.campo label {
+display: block;
+margin-bottom: 5px;
+}
+
+.input {
+padding: 8px;
+border: 1px solid #999;
+border-radius: 5px;
+}
+
+.botao {
+padding: 8px;
+border: 1px solid #999;
+border-radius: 5px;
+cursor: pointer;
+
+
+}
+
+.lista {
+display: flex;
+flex-direction: column;
+gap: 15px;
+margin: 50px;
+max-width: 500px;
+}
+
+.card {
+background-color: #e5e5e5;
+padding: 16px;
+border-radius: 6px;
+}
+
+.card p {
+margin: 8px 0;
+}

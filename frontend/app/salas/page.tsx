@@ -14,7 +14,7 @@ export default function Salas() {
   const [dados, setDados] = useState<Salas[]>([]);
 
   async function carregarSalas(){
-    const resposta = await fetch("https://localhost:8080/salas");
+    const resposta = await fetch("http://localhost:8080/salas");
     const dadosRecebidos = await resposta.json();
 
     setDados(dadosRecebidos);
@@ -37,7 +37,7 @@ export default function Salas() {
       localizacao: formData.get("localizacao")
     };
 
-    await fetch("https://localhost:8080/sala", {
+    await fetch("http://localhost:8080/sala", {
         method: "POST",
         headers: {
           "content-Type": "application/json"

@@ -1,0 +1,13 @@
+.header {
+    background-color: #dbdbdb;
+    padding: 15px;
+}
+
+.menu {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}

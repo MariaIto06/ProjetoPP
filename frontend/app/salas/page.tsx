@@ -120,21 +120,19 @@ return ( <div className={estilos.pagina}>
     Salas cadastradas
   </h2>
 
-  <div className={estilos.lista}>
-    {dados.map((sala) => (
-      <div
-        key={sala.id}
-        className={estilos.card}
-      >
-        <h4>ID: {sala.id}</h4>
+  <div className={estilos.listaSalas}>
+  {dados.map((sala) => (
+    <div key={sala.id} className={estilos.cardSala}>
+      <h3>{sala.nome}</h3>
 
-        <p>Código: {sala.codigo}</p>
-        <p>Nome: {sala.nome}</p>
-        <p>Capacidade: {sala.capacidade}</p>
-        <p>Localização: {sala.localizacao}</p>
-      </div>
-    ))}
-  </div>
+      <p>Código: {sala.codigo}</p>
+
+      <p>Capacidade: {sala.capacidade}</p>
+
+      <p>Localização: {sala.localizacao}</p>
+    </div>
+  ))}
+</div>
 
   <br />
   <br />

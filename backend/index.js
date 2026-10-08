@@ -26,12 +26,12 @@ async function conectaBD() {
 app.get('/laboratorios', async (req, res) => {
     const conexao = await conectaBD();
     const result = await conexao.query("SELECT * FROM reservas.laboratorio");
-    res.json(result.recordset);
+    res.json(result.recordset);//enviando os dados pegos na tabela selecionada
 });
 
 app.post('/laboratorio', async(req, res)=>{
     try{
-        const {codigo, nome, capacidade, localizacao } = req.body;
+        const {codigo, nome, capacidade, localizacao } = req.body; //pega o ody feito no cadastro do frontend
         const conexao = await conectaBD();
         const result = await conexao.query(`
             INSERT INTO reservas.laboratorio
@@ -137,9 +137,9 @@ app.post('/sala', async(req, res)=>{
 });
 
 
-app.use('/', (req, res) => {
+app.use('/', (req, res) => { //avisa se o servidor em geral esta rodando
     return res.json({ message: "Servidor rodando" });
 });
 
-// colocar servidor para atender requisições
+// avisa em qual porta o servido esta rodando
 app.listen(porta, () => console.log(`API funcionando!\nServidor rodando em: http://localhost:${porta}`));

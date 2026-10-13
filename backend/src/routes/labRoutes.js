@@ -1,9 +1,9 @@
 import express from "express";
-import LaboratorioController from "../controllers/LaboratorioController.js";
+import LabController from "../controllers/LabController.js";
 
 const routes = express.Router();
 
-routes.get("/laboratorios", LaboratorioController.listarLaboratorios);
-routes.post("/laboratorio", LaboratorioController.inserirLaboratorio);
+routes.get("/laboratorios", LabController.listarLaboratorios);
+routes.post("/laboratorio", LabController.inserirLaboratorio);
 
 export default routes;

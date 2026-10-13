@@ -1,8 +1,8 @@
 import express from "express";
 
-import laboratorios from "./laboratoriosRoutes.js";
-import salas from "./salasRoutes.js";
-import usuarios from "./usuariosRoutes.js";
+import laboratorios from "./labRoutes.js";
+import salas from "./salaRoutes.js";
+import usuarios from "./usuarioRoutes.js";
 import status from "./statusRoutes.js";
 
 const routes = (app) => {

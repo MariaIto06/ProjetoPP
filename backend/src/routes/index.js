@@ -4,6 +4,7 @@ import laboratorios from "./labRoutes.js";
 import salas from "./salaRoutes.js";
 import usuarios from "./usuarioRoutes.js";
 import status from "./statusRoutes.js";
+import authRoutes from "./authRoutes.js";
 
 const routes = (app) => {
     app.route("/").get((req, res) =>
@@ -15,8 +16,8 @@ const routes = (app) => {
         laboratorios,
         salas,
         usuarios,
-        status
+        status,
+        authRoutes
     );
 };
-
 export default routes;

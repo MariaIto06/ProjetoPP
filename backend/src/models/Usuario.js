@@ -24,6 +24,34 @@ class Usuario {
 
         return result.recordset;
     }
+    static async buscarPorLogin(login) {
+        const conexao = await conectaBD();
+
+        const result = await conexao.request()
+            .input("login", mssql.VarChar(50), login)
+            .query(`
+                SELECT
+                    id,
+                    cpf,
+                    nome,
+                    datanascimento,
+                    celular,
+                    email,
+                    login,
+                    senha,
+                    datacadastro,
+                    tipoUsuario
+                FROM reservas.usuario
+                WHERE login = @login
+            `);
+
+        if (result.recordset.length === 0) {
+            return null;
+        }
+
+        return result.recordset[0];
+    }
+
 
     static async inserirUsuario(usuario) {
         const {

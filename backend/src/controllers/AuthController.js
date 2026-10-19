@@ -1,4 +1,3 @@
-
 import Usuario from "../models/Usuario.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -25,7 +24,7 @@ class AuthController {
             }
 
             // 3. Compara a senha digitada com o hash do banco
-            const senhaCorreta = await bcrypt.compare(
+             const senhaCorreta = await bcrypt.compare(
                 senha,
                 usuario.senha
             );
@@ -41,8 +40,11 @@ class AuthController {
                 throw new Error("JWT_SECRET não configurado");
             }
 
-            const token = jwt.sign(
-                { id: usuario.id },
+           const token = jwt.sign(
+                {
+                    id: usuario.id,
+                    tipoUsuario: usuario.tipoUsuario
+                },
                 process.env.JWT_SECRET,
                 { expiresIn: "8h" }
             );

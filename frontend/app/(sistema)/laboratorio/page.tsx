@@ -61,19 +61,33 @@ export default function Laboratorio() {
     };
 
     try {
+      const token = sessionStorage.getItem("token");
       const response = await fetch(
         "http://localhost:8080/laboratorio",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
           },
           body: JSON.stringify(novoLaboratorio),
         }
       );
+      
+
+      if (response.status === 403) {
+        alert("Você não tem permissão para cadastrar laboratórios.");
+        return;
+      }
+
+      if (response.status === 401) {
+        alert("Você precisa estar autenticado para cadastrar.");
+        return;
+      }
 
       if (!response.ok) {
-        throw new Error("Erro ao cadastrar laboratório");
+        alert("Não foi possível cadastrar o laboratório.");
+        return;
       }
 
       alert("Laboratório cadastrado!");

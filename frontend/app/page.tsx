@@ -1,6 +1,7 @@
 "use client";
-
+import { useRouter } from "next/navigation";
 export default function Login() {
+  const router = useRouter();
 
   async function entrar(evento: React.SyntheticEvent<HTMLFormElement>){
     evento.preventDefault();
@@ -15,7 +16,7 @@ export default function Login() {
 
     try{
       const response = await fetch (
-        "https://localhost:8080",
+        "http://localhost:8080",
         {
           method: "POST",
           headers: {
@@ -27,12 +28,18 @@ export default function Login() {
 
       const resultado = await response.json();
 
+      console.log("Status HTTP:", response.status);
+      console.log("Resposta do backend:", resultado);
+
       if(!response.ok){
         alert(resultado.message ||"Login ou senha invalidos")
         return;
       }
 
+      sessionStorage.setItem("token", resultado.token);
+
       alert("Login realizado com sucesso");
+      router.push("/laboratorio");
     } catch (erro) {
       console.error("Erro ao fazer login:", erro);
       alert("Não foi possível conectar ao servidor.");
@@ -42,7 +49,7 @@ export default function Login() {
     <main>
       <h1>Entrar no sistema</h1>
 
-      <form>
+      <form onSubmit={entrar}>
         <div>
           <label htmlFor="login">Login</label>
           <input

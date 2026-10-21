@@ -44,10 +44,13 @@ evento: React.SyntheticEvent<HTMLFormElement>
     localizacao: formData.get("localizacao"),
   };
 
+  const token = sessionStorage.getItem("token");
+
   await fetch("http://localhost:8080/sala", { //envia um pedido ao backend
     method: "POST", 
     headers: {
       "Content-Type": "application/json", //avisa que é em json
+      "Authorization": `Bearer ${token}`,
     },
     body: JSON.stringify(novaSala),
   });

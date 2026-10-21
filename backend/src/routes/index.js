@@ -3,7 +3,7 @@ import express from "express";
 import laboratorios from "./labRoutes.js";
 import salas from "./salaRoutes.js";
 import usuarios from "./usuarioRoutes.js";
-import status from "./statusRoutes.js";
+import reservas from "./reservaRoutes.js";
 import authRoutes from "./authRoutes.js";
 
 const routes = (app) => {
@@ -16,8 +16,9 @@ const routes = (app) => {
         laboratorios,
         salas,
         usuarios,
-        status,
+        reservas,
         authRoutes
     );
 };
+
 export default routes;

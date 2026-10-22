@@ -72,6 +72,14 @@ export default function Login() {
 
         <button type="submit">Entrar</button>
       </form>
+      <p>Ainda não tem cadastro?</p>
+
+      <button
+        type="button"
+        onClick={() => router.push("/usuarios")}
+      >
+        Cadastrar usuário
+      </button>
     </main>
   );
 }

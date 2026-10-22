@@ -46,14 +46,42 @@ evento: React.SyntheticEvent<HTMLFormElement>
 
   const token = sessionStorage.getItem("token");
 
-  await fetch("http://localhost:8080/sala", { //envia um pedido ao backend
-    method: "POST", 
+  try {
+  const resposta = await fetch("http://localhost:8080/sala", {
+    method: "POST",
     headers: {
-      "Content-Type": "application/json", //avisa que é em json
+      "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`,
     },
     body: JSON.stringify(novaSala),
   });
+
+  if (resposta.status === 401) {
+    alert("Você precisa fazer login novamente.");
+    return;
+  }
+
+  if (resposta.status === 403) {
+    alert("Apenas professores podem cadastrar salas.");
+    return;
+  }
+
+  if (!resposta.ok) {
+    alert("Não foi possível cadastrar a sala.");
+    return;
+  }
+
+  alert("Sala cadastrada com sucesso!");
+
+  await carregarSalas();
+  formulario.reset();
+
+} catch (erro) {
+  console.error("Erro ao cadastrar sala:", erro);
+  alert("Não foi possível conectar ao servidor.");
+}
+
+  
 
   await carregarSalas();
 

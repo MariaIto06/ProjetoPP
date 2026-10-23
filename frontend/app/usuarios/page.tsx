@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import estilos from "./usuarios.module.css";
 
 interface Usuario {
   id: number;
@@ -10,224 +11,323 @@ interface Usuario {
   celular: string;
   email: string;
   login: string;
-  senha: string;
   datacadastro: string;
 }
 
 export default function Usuario() {
   const [dados, setDados] = useState<Usuario[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [cadastrando, setCadastrando] = useState(false);
+  const [erro, setErro] = useState("");
 
-  useEffect(() => { //busca de dados na api 
-    async function carregarDadosDosUsuarios() {
-        try {
-            const response = await fetch(
-                "http://localhost:8080/usuarios"
-            );
+  async function carregarDadosDosUsuarios() {
+    setCarregando(true);
+    setErro("");
 
-            if (!response.ok) {
-                throw new Error(
-                    "Erro ao trazer os dados de todos os usuários"
-                );
-            }
+    try {
+      const resposta = await fetch(
+        "http://localhost:8080/usuarios"
+      );
 
-            const resultado: Usuario[] = await response.json();   
+      if (!resposta.ok) {
+        throw new Error(
+          "Não foi possível carregar os usuários."
+        );
+      }
 
-            setDados(resultado);
+      const resultado: Usuario[] = await resposta.json();
+      setDados(resultado);
+    } catch (erro) {
+      console.error("Erro ao carregar usuários:", erro);
 
-        } catch (erro) {
-            console.error("Erro no processamento", erro);
-        }
+      setErro(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível conectar ao servidor."
+      );
+    } finally {
+      setCarregando(false);
     }
+  }
 
-    carregarDadosDosUsuarios();
-}, []);
+  useEffect(() => {
+    void carregarDadosDosUsuarios();
+  }, []);
 
-  async function cadastrar(
-    evento: React.SyntheticEvent<HTMLFormElement>
-  ) {
+  async function cadastrar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
+    setErro("");
 
     const formulario = evento.currentTarget;
-
     const formularioDados = new FormData(formulario);
 
     const novoUsuario = {
-    senha: formularioDados.get("senha"),
-    nome: formularioDados.get("nome"),
-    cpf: formularioDados.get("cpf"),
-    datanascimento: formularioDados.get("datanascimento"),
-    celular: formularioDados.get("celular"),
-    email: formularioDados.get("email"),
-    login: formularioDados.get("login")
-};
+      cpf: String(formularioDados.get("cpf") ?? "").trim(),
+      nome: String(formularioDados.get("nome") ?? "").trim(),
+      datanascimento: String(
+        formularioDados.get("datanascimento") ?? ""
+      ),
+      celular: String(
+        formularioDados.get("celular") ?? ""
+      ).trim(),
+      email: String(
+        formularioDados.get("email") ?? ""
+      ).trim(),
+      login: String(
+        formularioDados.get("login") ?? ""
+      ).trim(),
+      senha: String(formularioDados.get("senha") ?? ""),
+    };
+
+    if (
+      !novoUsuario.cpf ||
+      !novoUsuario.nome ||
+      !novoUsuario.datanascimento ||
+      !novoUsuario.celular ||
+      !novoUsuario.email ||
+      !novoUsuario.login ||
+      !novoUsuario.senha
+    ) {
+      setErro("Preencha todos os campos.");
+      return;
+    }
 
     const token = sessionStorage.getItem("token");
 
+    if (!token) {
+      setErro("Você precisa fazer login novamente.");
+      return;
+    }
+
+    setCadastrando(true);
+
     try {
-      const response = await fetch(
+      const resposta = await fetch(
         "http://localhost:8080/usuario",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(novoUsuario),
         }
       );
 
-      if (!response.ok) {
-        throw new Error("Erro ao cadastrar usuário");
-      }
+      const resultado = await resposta.json().catch(() => ({}));
 
-      alert("Usuario cadastrado!");
-
-      formulario.reset();
-
-      // Atualizar a lista depois do cadastro   
-      const respostaLista = await fetch(
-        "http://localhost:8080/usuarios"
-      );
-
-      if (!respostaLista.ok) {
+      if (resposta.status === 401) {
         throw new Error(
-          "Erro ao atualizar a lista de usuarios"
+          "Sua sessão expirou. Faça login novamente."
         );
       }
 
-      const resultado: Usuario[] =
-        await respostaLista.json();
+      if (resposta.status === 403) {
+        throw new Error(
+          "Você não tem permissão para cadastrar usuários."
+        );
+      }
 
-      setDados(resultado);
+      if (!resposta.ok) {
+        throw new Error(
+          resultado.message ||
+            "Não foi possível cadastrar o usuário."
+        );
+      }
+
+      formulario.reset();
+      await carregarDadosDosUsuarios();
     } catch (erro) {
-      console.error("Erro no processamento", erro);
-      alert("Não foi possível cadastrar o Usuário.");
+      console.error("Erro ao cadastrar usuário:", erro);
+
+      setErro(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível conectar ao servidor."
+      );
+    } finally {
+      setCadastrando(false);
     }
   }
 
- return (
-  <div>
-    <h2 className="text-center mt-5 mb-2 font-bold text-2xl">
-      Cadastro de Usuários
-    </h2>
+  return (
+    <main className={estilos.pagina}>
+      <h1 className={estilos.titulo}>
+        Cadastro de Usuários
+      </h1>
 
-    <div className="mx-2">
-      <form onSubmit={cadastrar}>
-        <div className="mb-3">
-          <label>CPF</label>
-          
+      <section className={estilos.container}>
+        <form onSubmit={cadastrar}>
+          <div className={estilos.campo}>
+            <label htmlFor="cpf">CPF</label>
+            <input
+              id="cpf"
+              name="cpf"
+              type="text"
+              autoComplete="off"
+              className={estilos.input}
+              required
+            />
+          </div>
 
-          <input
-            name="cpf"
-            required
-            className="border border-gray-400 rounded-md p-2"
-          />
+          <div className={estilos.campo}>
+            <label htmlFor="nome">Nome completo</label>
+            <input
+              id="nome"
+              name="nome"
+              type="text"
+              autoComplete="name"
+              className={estilos.input}
+              required
+            />
+          </div>
+
+          <div className={estilos.campo}>
+            <label htmlFor="datanascimento">
+              Data de nascimento
+            </label>
+            <input
+              id="datanascimento"
+              name="datanascimento"
+              type="date"
+              className={estilos.input}
+              required
+            />
+          </div>
+
+          <div className={estilos.campo}>
+            <label htmlFor="celular">Celular</label>
+            <input
+              id="celular"
+              name="celular"
+              type="tel"
+              autoComplete="tel"
+              className={estilos.input}
+              required
+            />
+          </div>
+
+          <div className={estilos.campo}>
+            <label htmlFor="email">E-mail</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              className={estilos.input}
+              required
+            />
+          </div>
+
+          <div className={estilos.campo}>
+            <label htmlFor="login">Login</label>
+            <input
+              id="login"
+              name="login"
+              type="text"
+              autoComplete="off"
+              className={estilos.input}
+              required
+            />
+          </div>
+
+          <div className={estilos.campo}>
+            <label htmlFor="senha">Senha</label>
+            <input
+              id="senha"
+              name="senha"
+              type="password"
+              autoComplete="new-password"
+              className={estilos.input}
+              required
+            />
+          </div>
+
+          {erro && (
+            <div className={estilos.mensagemErro} role="alert">
+              {erro}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className={estilos.botao}
+            disabled={cadastrando}
+          >
+            {cadastrando ? "Cadastrando..." : "Cadastrar"}
+          </button>
+        </form>
+      </section>
+
+      <section>
+        <div className={estilos.cabecalhoLista}>
+          <div>
+            <h2 className={estilos.titulo}>
+              Usuários cadastrados
+            </h2>
+            <p>
+              Consulte as informações dos usuários registrados.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className={estilos.botaoSecundario}
+            onClick={() => void carregarDadosDosUsuarios()}
+            disabled={carregando}
+          >
+            {carregando ? "Atualizando..." : "Atualizar lista"}
+          </button>
         </div>
 
-        <div className="mb-3">
-          <label>Nome completo</label>
-          
+        {carregando ? (
+          <div className={estilos.estadoVazio}>
+            Carregando usuários...
+          </div>
+        ) : dados.length === 0 ? (
+          <div className={estilos.estadoVazio}>
+            <h3>Nenhum usuário encontrado</h3>
+            <p>Os usuários cadastrados aparecerão aqui.</p>
+          </div>
+        ) : (
+          <div className={estilos.lista}>
+            {dados.map((registro) => (
+              <article
+                key={registro.id}
+                className={estilos.card}
+              >
+                <h3>{registro.nome}</h3>
 
-          <input
-            name="nome"
-            required
-            className="border border-gray-400 rounded-md p-2"
-          />
-        </div>
-
-        <div className="mb-3">
-          <label>Data de nascimento</label>
-        
-
-          <input
-            name="datanascimento"
-            type="date"
-            required
-            className="border border-gray-400 rounded-md p-2"
-          />
-        </div>
-
-        <div className="mb-3">
-          <label>Celular</label>
-         
-
-          <input
-            name="celular"
-            required
-            className="border border-gray-400 rounded-md p-2"
-          />
-        </div>
-
-        <div className="mb-3">
-          <label>E-mail</label>
-          
-
-          <input
-            name="email"
-            type="email"
-            required
-            className="border border-gray-400 rounded-md p-2"
-          />
-        </div>
-
-        <div className="mb-3">
-          <label>Login</label>
-          
-
-          <input
-            name="login"
-            required
-            className="border border-gray-400 rounded-md p-2"
-          />
-        </div>
-
-        <div className="mb-3">
-          <label>Senha</label>
-         
-
-          <input
-            name="senha"
-            type="password"
-            required
-            className="border border-gray-400 rounded-md p-2"
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="border border-gray-400 rounded-md p-2"
-        >
-          Cadastrar
-        </button>
-      </form>
-    </div>
-
-    <h2 className="text-center mt-5 mb-2 font-bold text-2xl">
-      Usuários cadastrados
-    </h2>
-
-    <div className="flex flex-col gap-4 mx-2">
-      {dados.map((registro) => (
-        <div
-          key={registro.id}
-          className="bg-gray-200 p-4 rounded-md"
-        >
-          <h4>ID: {registro.id}</h4>
-
-          <p>CPF: {registro.cpf}</p>
-          <p>Nome: {registro.nome}</p>
-          <p>Data de nascimento: {registro.datanascimento}</p>
-          <p>Celular: {registro.celular}</p>
-          <p>E-mail: {registro.email}</p>
-          <p>Login: {registro.login}</p>
-          <p>Data de cadastro: {registro.datacadastro}</p>
-        </div>
-      ))}
-    </div>
-
-    <br />
-    <br />
-  </div>
-);
+                <p>
+                  <strong>ID:</strong> {registro.id}
+                </p>
+                <p>
+                  <strong>CPF:</strong> {registro.cpf}
+                </p>
+                <p>
+                  <strong>Nascimento:</strong>{" "}
+                  {registro.datanascimento}
+                </p>
+                <p>
+                  <strong>Celular:</strong> {registro.celular}
+                </p>
+                <p>
+                  <strong>E-mail:</strong> {registro.email}
+                </p>
+                <p>
+                  <strong>Login:</strong> {registro.login}
+                </p>
+                <p>
+                  <strong>Data de cadastro:</strong>{" "}
+                  {registro.datacadastro}
+                </p>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
+  );
 }
+
 

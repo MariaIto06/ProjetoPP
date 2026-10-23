@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import estilos from "./salas.module.css";
 
 interface Salas {
@@ -12,163 +12,244 @@ interface Salas {
 }
 
 export default function Salas() {
-const [dados, setDados] = useState<Salas[]>([]);
+  const [dados, setDados] = useState<Salas[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [cadastrando, setCadastrando] = useState(false);
+  const [erro, setErro] = useState("");
 
-async function carregarSalas() {
-const resposta = await fetch("http://localhost:8080/salas"); //pede pro backend enviar a lista dos laboratorios cadastrados(usa o get automaticamente)
-const dadosRecebidos = await resposta.json();
+  async function carregarSalas() {
+    setCarregando(true);
+    setErro("");
 
+    try {
+      const resposta = await fetch("http://localhost:8080/salas");
 
-setDados(dadosRecebidos);
+      if (!resposta.ok) {
+        throw new Error("Não foi possível carregar as salas.");
+      }
 
+      const dadosRecebidos: Salas[] = await resposta.json();
+      setDados(dadosRecebidos);
+    } catch (erro) {
+      console.error("Erro ao carregar salas:", erro);
 
-}
-
-useEffect(() => {
-carregarSalas();
-}, []);
-
-async function cadastrar(
-evento: React.SyntheticEvent<HTMLFormElement>
-) {
-  evento.preventDefault();
-
-
-  const formulario = evento.currentTarget; //pegando os dados do formulerio
-  const formData = new FormData(formulario); //o FormData coloca os dados em uma variavel imutavel 
-
-  const novaSala = { //categorizando as informações
-    codigo: formData.get("codigo"),
-    nome: formData.get("nome"),
-    capacidade: Number(formData.get("capacidade")),
-    localizacao: formData.get("localizacao"),
-  };
-
-  const token = sessionStorage.getItem("token");
-
-  try {
-  const resposta = await fetch("http://localhost:8080/sala", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    },
-    body: JSON.stringify(novaSala),
-  });
-
-  if (resposta.status === 401) {
-    alert("Você precisa fazer login novamente.");
-    return;
+      setErro(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível conectar ao servidor."
+      );
+    } finally {
+      setCarregando(false);
+    }
   }
 
-  if (resposta.status === 403) {
-    alert("Apenas professores podem cadastrar salas.");
-    return;
+  useEffect(() => {
+    void carregarSalas();
+  }, []);
+
+  async function cadastrar(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+
+    setErro("");
+
+    const formulario = evento.currentTarget;
+    const formData = new FormData(formulario);
+
+    const novaSala = {
+      codigo: String(formData.get("codigo") ?? "").trim(),
+      nome: String(formData.get("nome") ?? "").trim(),
+      capacidade: Number(formData.get("capacidade")),
+      localizacao: String(formData.get("localizacao") ?? "").trim(),
+    };
+
+    if (
+      !novaSala.codigo ||
+      !novaSala.nome ||
+      !novaSala.localizacao ||
+      !Number.isInteger(novaSala.capacidade) ||
+      novaSala.capacidade <= 0
+    ) {
+      setErro("Preencha todos os campos corretamente.");
+      return;
+    }
+
+    const token = sessionStorage.getItem("token");
+
+    if (!token) {
+      setErro("Você precisa fazer login novamente.");
+      return;
+    }
+
+    setCadastrando(true);
+
+    try {
+      const resposta = await fetch("http://localhost:8080/sala", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(novaSala),
+      });
+
+      const resultado = await resposta.json().catch(() => ({}));
+
+      if (resposta.status === 401) {
+        throw new Error("Você precisa fazer login novamente.");
+      }
+
+      
+       if (resposta.status === 403) {
+        setErro("Apenas professores podem cadastrar salas.");
+        return;
+      }
+      
+
+      if (!resposta.ok) {
+        throw new Error(
+          resultado.message || "Não foi possível cadastrar a sala."
+        );
+      }
+
+      formulario.reset();
+
+      await carregarSalas();
+    } catch (erro) {
+    console.error("Erro ao cadastrar sala:", erro);
+
+    setErro(
+      erro instanceof Error
+        ? erro.message
+        : "Não foi possível conectar ao servidor."
+    );
+  } finally {
+      setCadastrando(false);
+    }
   }
 
-  if (!resposta.ok) {
-    alert("Não foi possível cadastrar a sala.");
-    return;
-  }
+  return (
+    <main className={estilos.pagina}>
+      <h1 className={estilos.titulo}>Cadastro de Salas</h1>
 
-  alert("Sala cadastrada com sucesso!");
+      <section className={estilos.container}>
+        <form onSubmit={cadastrar}>
+          <div className={estilos.campo}>
+            <label htmlFor="codigo">Código</label>
 
-  await carregarSalas();
-  formulario.reset();
+            <input
+              id="codigo"
+              name="codigo"
+              type="text"
+              className={estilos.input}
+              required
+            />
+          </div>
 
-} catch (erro) {
-  console.error("Erro ao cadastrar sala:", erro);
-  alert("Não foi possível conectar ao servidor.");
-}
+          <div className={estilos.campo}>
+            <label htmlFor="nome">Nome</label>
 
-  
+            <input
+              id="nome"
+              name="nome"
+              type="text"
+              className={estilos.input}
+              required
+            />
+          </div>
 
-  await carregarSalas();
+          <div className={estilos.campo}>
+            <label htmlFor="capacidade">Capacidade</label>
 
-  formulario.reset();
+            <input
+              id="capacidade"
+              name="capacidade"
+              type="number"
+              min="1"
+              step="1"
+              className={estilos.input}
+              required
+            />
+          </div>
 
+          <div className={estilos.campo}>
+            <label htmlFor="localizacao">Localização</label>
 
-}
+            <input
+              id="localizacao"
+              name="localizacao"
+              type="text"
+              className={estilos.input}
+              required
+            />
+          </div>
 
-return ( <div className={estilos.pagina}> 
-  <h2 className={estilos.titulo}>
-  Cadastro de Salas 
-  </h2>
+          {erro && (
+            <div className={estilos.mensagemErro} role="alert">
+              {erro}
+            </div>
+          )}
 
-  <div className={estilos.container}>
-    <form onSubmit={cadastrar}>
-      <div className={estilos.campo}>
-        <label>Código</label>
+          <button
+            type="submit"
+            className={estilos.botao}
+            disabled={cadastrando}
+          >
+            {cadastrando ? "Cadastrando..." : "Cadastrar"}
+          </button>
+        </form>
+      </section>
 
-        <input
-          name="codigo"
-          required
-          className={estilos.input}
-        />
-      </div>
+      <section>
+        <div className={estilos.cabecalhoReservas}>
+          <div>
+            <h2 className={estilos.titulo}>Salas cadastradas</h2>
 
-      <div className={estilos.campo}>
-        <label>Nome</label>
+            <p>
+              Consulte os códigos, as capacidades e as localizações das salas.
+            </p>
+          </div>
 
-        <input
-          name="nome"
-          required
-          className={estilos.input}
-        />
-      </div>
+          <button
+            type="button"
+            className={estilos.botaoSecundario}
+            onClick={() => void carregarSalas()}
+            disabled={carregando}
+          >
+            {carregando ? "Atualizando..." : "Atualizar lista"}
+          </button>
+        </div>
 
-      <div className={estilos.campo}>
-        <label>Capacidade</label>
+        {carregando ? (
+          <div className={estilos.estadoVazio}>
+            Carregando salas...
+          </div>
+        ) : dados.length === 0 ? (
+          <div className={estilos.estadoVazio}>
+            <h3>Nenhuma sala encontrada</h3>
+            <p>As salas cadastradas aparecerão aqui.</p>
+          </div>
+        ) : (
+          <div className={estilos.lista}>
+            {dados.map((sala) => (
+              <article key={sala.id} className={estilos.card}>
+                <h3>{sala.nome}</h3>
 
-        <input
-          name="capacidade"
-          type="number"
-          required
-          className={estilos.input}
-        />
-      </div>
+                <p>
+                  <strong>Código:</strong> {sala.codigo}
+                </p>
 
-      <div className={estilos.campo}>
-        <label>Localização</label>
+                <p>
+                  <strong>Capacidade:</strong> {sala.capacidade} pessoas
+                </p>
 
-        <input
-          name="localizacao"
-          required
-          className={estilos.input}
-        />
-      </div>
-
-      <button
-        type="submit"
-        className={estilos.botao}
-      >
-        Cadastrar
-      </button>
-    </form>
-  </div>
-
-  <h2 className={estilos.titulo}>
-    Salas cadastradas
-  </h2>
-
-  <div className={estilos.listaSalas}>
-  {dados.map((sala) => ( //mapeando todas as salas que tem em cada array
-    <div key={sala.id} className={estilos.cardSala}>
-      <h3>{sala.nome}</h3>
-
-      <p>Código: {sala.codigo}</p>
-
-      <p>Capacidade: {sala.capacidade}</p>
-
-      <p>Localização: {sala.localizacao}</p>
-    </div>
-  ))}
-</div>
-
-  <br />
-  <br />
-</div>
-
-
-);
+                <p>
+                  <strong>Localização:</strong> {sala.localizacao}
+                </p>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
+  );
 }

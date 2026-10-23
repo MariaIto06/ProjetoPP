@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import estilos from "./laboratorios.module.css";
 
 interface Laboratorio {
   id: number;
@@ -12,199 +13,269 @@ interface Laboratorio {
 
 export default function Laboratorio() {
   const [dados, setDados] = useState<Laboratorio[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [cadastrando, setCadastrando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  async function carregarDadosDosLaboratorios() {
+    setCarregando(true);
+    setErro("");
+
+    try {
+      const resposta = await fetch(
+        "http://localhost:8080/laboratorios"
+      );
+
+      if (!resposta.ok) {
+        throw new Error(
+          "Não foi possível carregar os laboratórios."
+        );
+      }
+
+      const resultado: Laboratorio[] = await resposta.json();
+      setDados(resultado);
+    } catch (erro) {
+      console.error("Erro ao carregar laboratórios:", erro);
+
+      setErro(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível conectar ao servidor."
+      );
+    } finally {
+      setCarregando(false);
+    }
+  }
 
   useEffect(() => {
-    async function carregarDadosDosLaboratorios() {
-      try {
-        const response = await fetch(
-          "http://localhost:8080/laboratorios"
-        );
-
-        if (!response.ok) {
-          throw new Error(
-            "Erro ao trazer os dados de todos os laboratórios"
-          );
-        }
-
-        const resultado: Laboratorio[] = await response.json();
-
-        console.log(
-          "Dados dos laboratórios vindo do JSON da API"
-        );
-        console.log(resultado);
-
-        setDados(resultado);
-      } catch (erro) {
-        console.error("Erro no processamento", erro);
-      }
-    }
-
-    carregarDadosDosLaboratorios();
+    void carregarDadosDosLaboratorios();
   }, []);
 
-  async function cadastrar(
-    evento: React.SyntheticEvent<HTMLFormElement>
-  ) {
+  async function cadastrar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
+    setErro("");
 
     const formulario = evento.currentTarget;
-
     const formularioDados = new FormData(formulario);
 
     const novoLaboratorio = {
-      codigo: formularioDados.get("codigo"),
-      nome: formularioDados.get("nome"),
+      codigo: String(
+        formularioDados.get("codigo") ?? ""
+      ).trim(),
+      nome: String(
+        formularioDados.get("nome") ?? ""
+      ).trim(),
       capacidade: Number(
         formularioDados.get("capacidade")
       ),
-      localizacao: formularioDados.get("localizacao"),
+      localizacao: String(
+        formularioDados.get("localizacao") ?? ""
+      ).trim(),
     };
 
+    if (
+      !novoLaboratorio.codigo ||
+      !novoLaboratorio.nome ||
+      !novoLaboratorio.localizacao ||
+      !Number.isInteger(novoLaboratorio.capacidade) ||
+      novoLaboratorio.capacidade <= 0
+    ) {
+      setErro("Preencha todos os campos corretamente.");
+      return;
+    }
+
+    const token = sessionStorage.getItem("token");
+
+    if (!token) {
+      setErro("Você precisa fazer login novamente.");
+      return;
+    }
+
+    setCadastrando(true);
+
     try {
-      const token = sessionStorage.getItem("token");
-      const response = await fetch(
+      const resposta = await fetch(
         "http://localhost:8080/laboratorio",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(novoLaboratorio),
         }
       );
-      
 
-      if (response.status === 403) {
-        alert("Você não tem permissão para cadastrar laboratórios.");
-        return;
-      }
+      const resultado = await resposta.json().catch(() => ({}));
 
-      if (response.status === 401) {
-        alert("Você precisa estar autenticado para cadastrar.");
-        return;
-      }
-
-      if (!response.ok) {
-        alert("Não foi possível cadastrar o laboratório.");
-        return;
-      }
-
-      alert("Laboratório cadastrado!");
-
-      formulario.reset();
-
-      // Atualizar a lista depois do cadastro
-      const respostaLista = await fetch(
-        "http://localhost:8080/laboratorios"
-      );
-
-      if (!respostaLista.ok) {
+      if (resposta.status === 401) {
         throw new Error(
-          "Erro ao atualizar a lista de laboratórios"
+          "Você precisa estar autenticado para cadastrar."
         );
       }
 
-      const resultado: Laboratorio[] =
-        await respostaLista.json();
+     if (resposta.status === 403) {
+        setErro("Apenas professores podem cadastrar salas.");
+        return;
+      }
 
-      setDados(resultado);
+      if (!resposta.ok) {
+        throw new Error(
+          resultado.message ||
+            "Não foi possível cadastrar o laboratório."
+        );
+      }
+
+      formulario.reset();
+      await carregarDadosDosLaboratorios();
     } catch (erro) {
-      console.error("Erro no processamento", erro);
-      alert("Não foi possível cadastrar o laboratório.");
+      console.error("Erro ao cadastrar laboratório:", erro);
+
+      setErro(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível conectar ao servidor."
+      );
+    } finally {
+      setCadastrando(false);
     }
   }
 
   return (
-    <div>
-      <h2 className="text-center mt-5 mb-2 font-bold text-2xl">
+    <main className={estilos.pagina}>
+      <h1 className={estilos.titulo}>
         Cadastro de Laboratórios
-      </h2>
+      </h1>
 
-      <div className="mx-2">
+      <section className={estilos.container}>
         <form onSubmit={cadastrar}>
-          <div className="mb-3">
-            <label>Código</label>
-            <br />
-
+          <div className={estilos.campo}>
+            <label htmlFor="codigo">Código</label>
             <input
+              id="codigo"
               name="codigo"
+              type="text"
+              className={estilos.input}
               required
-              className="border border-gray-400 rounded-md p-2"
             />
           </div>
 
-          <div className="mb-3">
-            <label>Nome</label>
-            <br />
-
+          <div className={estilos.campo}>
+            <label htmlFor="nome">Nome</label>
             <input
+              id="nome"
               name="nome"
+              type="text"
+              className={estilos.input}
               required
-              className="border border-gray-400 rounded-md p-2"
             />
           </div>
 
-          <div className="mb-3">
-            <label>Capacidade</label>
-            <br />
-
+          <div className={estilos.campo}>
+            <label htmlFor="capacidade">Capacidade</label>
             <input
+              id="capacidade"
               name="capacidade"
               type="number"
+              min="1"
+              step="1"
+              className={estilos.input}
               required
-              className="border border-gray-400 rounded-md p-2"
             />
           </div>
 
-          <div className="mb-3">
-            <label>Localização</label>
-            <br />
-
+          <div className={estilos.campo}>
+            <label htmlFor="localizacao">Localização</label>
             <input
+              id="localizacao"
               name="localizacao"
+              type="text"
+              className={estilos.input}
               required
-              className="border border-gray-400 rounded-md p-2"
             />
           </div>
+
+          {erro && (
+            <div className={estilos.mensagemErro} role="alert">
+              {erro}
+            </div>
+          )}
 
           <button
             type="submit"
-            className="border border-gray-400 rounded-md p-2"
+            className={estilos.botao}
+            disabled={cadastrando}
           >
-            Cadastrar
+            {cadastrando ? "Cadastrando..." : "Cadastrar"}
           </button>
         </form>
-      </div>
+      </section>
 
-      <h2 className="text-center mt-5 mb-2 font-bold text-2xl">
-        Laboratórios cadastrados
-      </h2>
-
-      <div className="flex flex-col gap-4 mx-2">
-        {dados.map((registro) => (
-          <div
-            key={registro.id}
-            className="bg-gray-200 p-4 rounded-md"
-          >
-            <h4>ID: {registro.id}</h4>
-
-            <h2 className="font-bold">
-              Código: {registro.codigo}
+      <section>
+        <div className={estilos.cabecalhoReservas}>
+          <div>
+            <h2 className={estilos.titulo}>
+              Laboratórios cadastrados
             </h2>
 
-            <p>Nome: {registro.nome}</p>
-
-            <p>Capacidade: {registro.capacidade}</p>
-
-            <p>Localização: {registro.localizacao}</p>
+            <p>
+              Consulte os códigos, as capacidades e as localizações
+              dos laboratórios.
+            </p>
           </div>
-        ))}
-      </div>
 
-      <br />
-      <br />
-    </div>
+          <button
+            type="button"
+            className={estilos.botaoSecundario}
+            onClick={() => void carregarDadosDosLaboratorios()}
+            disabled={carregando}
+          >
+            {carregando ? "Atualizando..." : "Atualizar lista"}
+          </button>
+        </div>
+
+        {carregando ? (
+          <div className={estilos.estadoVazio}>
+            Carregando laboratórios...
+          </div>
+        ) : dados.length === 0 ? (
+          <div className={estilos.estadoVazio}>
+            <h3>Nenhum laboratório encontrado</h3>
+            <p>
+              Os laboratórios cadastrados aparecerão aqui.
+            </p>
+          </div>
+        ) : (
+          <div className={estilos.lista}>
+            {dados.map((registro) => (
+              <article
+                key={registro.id}
+                className={estilos.card}
+              >
+                <h3>{registro.nome}</h3>
+
+                <p>
+                  <strong>ID:</strong> {registro.id}
+                </p>
+
+                <p>
+                  <strong>Código:</strong> {registro.codigo}
+                </p>
+
+                <p>
+                  <strong>Capacidade:</strong>{" "}
+                  {registro.capacidade} pessoas
+                </p>
+
+                <p>
+                  <strong>Localização:</strong>{" "}
+                  {registro.localizacao}
+                </p>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
-

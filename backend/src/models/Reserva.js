@@ -32,30 +32,131 @@ class Reserva {
         return result.recordset;
     }
 
-    static async inserirReserva(reserva) {
+    
+    static async atualizarReserva(id, reserva) {
         const {
             idSala,
             idLaboratorio,
-            idUsuario,
             inicio,
             fim
         } = reserva;
 
         const conexao = await conectaBD();
+        const transacao = new mssql.Transaction(conexao);
 
-        await conexao.request()
-            .input("idSala", mssql.Int, idSala ?? null)
-            .input("idLaboratorio", mssql.Int, idLaboratorio ?? null)
-            .input("idUsuario", mssql.Int, idUsuario)
-            .input("inicio", mssql.DateTime2, inicio)
-            .input("fim", mssql.DateTime2, fim)
-            .query(`
-                INSERT INTO reservas.reserva
-                    (idSala, idLaboratorio, idUsuario, inicio, fim)
-                VALUES
-                    (@idSala, @idLaboratorio, @idUsuario, @inicio, @fim)
-            `);
+        let transacaoIniciada = false;
+
+        try {
+            await transacao.begin(
+                mssql.ISOLATION_LEVEL.SERIALIZABLE
+            );
+
+            transacaoIniciada = true;
+
+            // Verificar conflitos, ignorando a própria reserva
+            const resultado = await transacao.request()
+                .input("id", mssql.Int, id)
+                .input("idSala", mssql.Int, idSala ?? null)
+                .input(
+                    "idLaboratorio",
+                    mssql.Int,
+                    idLaboratorio ?? null
+                )
+                .input("inicio", mssql.DateTime2, inicio)
+                .input("fim", mssql.DateTime2, fim)
+                .query(`
+                    SELECT TOP 1 r.id
+                    FROM reservas.reserva r WITH (UPDLOCK, HOLDLOCK)
+                    WHERE
+                        r.id <> @id
+                        AND (
+                            (
+                                @idSala IS NOT NULL
+                                AND r.idSala = @idSala
+                            )
+                            OR
+                            (
+                                @idLaboratorio IS NOT NULL
+                                AND r.idLaboratorio = @idLaboratorio
+                            )
+                        )
+                        AND r.inicio < DATEADD(MINUTE, 15, @fim)
+                        AND r.fim > DATEADD(MINUTE, -15, @inicio)
+                `);
+
+            if (resultado.recordset.length > 0) {
+                const erro = new Error(
+                    "Esse recurso já possui uma reserva nesse horário ou não há 15 minutos de intervalo."
+                );
+
+                erro.code = "RESERVA_CONFLITO";
+
+                throw erro;
+            }
+
+            const atualizacao = await transacao.request()
+                .input("id", mssql.Int, id)
+                .input("idSala", mssql.Int, idSala ?? null)
+                .input(
+                    "idLaboratorio",
+                    mssql.Int,
+                    idLaboratorio ?? null
+                )
+                .input("inicio", mssql.DateTime2, inicio)
+                .input("fim", mssql.DateTime2, fim)
+                .query(`
+                    UPDATE reservas.reserva
+                    SET
+                        idSala = @idSala,
+                        idLaboratorio = @idLaboratorio,
+                        inicio = @inicio,
+                        fim = @fim
+                    WHERE id = @id
+                `);
+
+            if (atualizacao.rowsAffected[0] === 0) {
+                const erro = new Error("Reserva não encontrada.");
+                erro.code = "RESERVA_NAO_ENCONTRADA";
+                throw erro;
+            }
+
+            await transacao.commit();
+        } catch (erro) {
+            if (transacaoIniciada) {
+                try {
+                    await transacao.rollback();
+                } catch (erroRollback) {
+                    console.error(
+                        "Erro ao desfazer transação:",
+                        erroRollback
+                    );
+                }
+            }
+
+            throw erro;
+        }
     }
-}
+
+    static async excluirReserva(id) {
+        const conexao = await conectaBD();
+
+        const resultado = await conexao.request()
+            .input("id", mssql.Int, id)
+            .query(`
+                DELETE FROM reservas.reserva
+                WHERE id = @id
+            `);
+
+        if (resultado.rowsAffected[0] === 0) {
+            const erro = new Error("Reserva não encontrada.");
+            erro.code = "RESERVA_NAO_ENCONTRADA";
+            throw erro;
+        }
+    }
+
+
+
+    }
+
 
 export default Reserva;

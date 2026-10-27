@@ -1,62 +1,20 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import estilos from "./usuarios.module.css";
 
-interface Usuario {
-  id: number;
-  cpf: string;
-  nome: string;
-  datanascimento: string;
-  celular: string;
-  email: string;
-  login: string;
-  datacadastro: string;
-}
 
 export default function Usuario() {
-  const [dados, setDados] = useState<Usuario[]>([]);
-  const [carregando, setCarregando] = useState(true);
   const [cadastrando, setCadastrando] = useState(false);
   const [erro, setErro] = useState("");
+  const [sucesso, setSucesso] = useState("");
 
-  async function carregarDadosDosUsuarios() {
-    setCarregando(true);
-    setErro("");
-
-    try {
-      const resposta = await fetch(
-        "http://localhost:8080/usuarios"
-      );
-
-      if (!resposta.ok) {
-        throw new Error(
-          "Não foi possível carregar os usuários."
-        );
-      }
-
-      const resultado: Usuario[] = await resposta.json();
-      setDados(resultado);
-    } catch (erro) {
-      console.error("Erro ao carregar usuários:", erro);
-
-      setErro(
-        erro instanceof Error
-          ? erro.message
-          : "Não foi possível conectar ao servidor."
-      );
-    } finally {
-      setCarregando(false);
-    }
-  }
-
-  useEffect(() => {
-    void carregarDadosDosUsuarios();
-  }, []);
 
   async function cadastrar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     setErro("");
+    setSucesso("");
 
     const formulario = evento.currentTarget;
     const formularioDados = new FormData(formulario);
@@ -92,12 +50,6 @@ export default function Usuario() {
       return;
     }
 
-    const token = sessionStorage.getItem("token");
-
-    if (!token) {
-      setErro("Você precisa fazer login novamente.");
-      return;
-    }
 
     setCadastrando(true);
 
@@ -108,7 +60,6 @@ export default function Usuario() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(novoUsuario),
         }
@@ -135,8 +86,9 @@ export default function Usuario() {
         );
       }
 
-      formulario.reset();
-      await carregarDadosDosUsuarios();
+    formulario.reset();
+    setSucesso("Cadastro realizado com sucesso! Agora você pode fazer login.");
+
     } catch (erro) {
       console.error("Erro ao cadastrar usuário:", erro);
 
@@ -248,6 +200,9 @@ export default function Usuario() {
               {erro}
             </div>
           )}
+          {sucesso && (
+            <p role="status">{sucesso}</p>
+          )}
 
           <button
             type="submit"
@@ -257,75 +212,12 @@ export default function Usuario() {
             {cadastrando ? "Cadastrando..." : "Cadastrar"}
           </button>
         </form>
+        <p>
+          Já tem uma conta? <Link href="/">Voltar para o login</Link>
+        </p>
       </section>
 
-      <section>
-        <div className={estilos.cabecalhoLista}>
-          <div>
-            <h2 className={estilos.titulo}>
-              Usuários cadastrados
-            </h2>
-            <p>
-              Consulte as informações dos usuários registrados.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className={estilos.botaoSecundario}
-            onClick={() => void carregarDadosDosUsuarios()}
-            disabled={carregando}
-          >
-            {carregando ? "Atualizando..." : "Atualizar lista"}
-          </button>
-        </div>
-
-        {carregando ? (
-          <div className={estilos.estadoVazio}>
-            Carregando usuários...
-          </div>
-        ) : dados.length === 0 ? (
-          <div className={estilos.estadoVazio}>
-            <h3>Nenhum usuário encontrado</h3>
-            <p>Os usuários cadastrados aparecerão aqui.</p>
-          </div>
-        ) : (
-          <div className={estilos.lista}>
-            {dados.map((registro) => (
-              <article
-                key={registro.id}
-                className={estilos.card}
-              >
-                <h3>{registro.nome}</h3>
-
-                <p>
-                  <strong>ID:</strong> {registro.id}
-                </p>
-                <p>
-                  <strong>CPF:</strong> {registro.cpf}
-                </p>
-                <p>
-                  <strong>Nascimento:</strong>{" "}
-                  {registro.datanascimento}
-                </p>
-                <p>
-                  <strong>Celular:</strong> {registro.celular}
-                </p>
-                <p>
-                  <strong>E-mail:</strong> {registro.email}
-                </p>
-                <p>
-                  <strong>Login:</strong> {registro.login}
-                </p>
-                <p>
-                  <strong>Data de cadastro:</strong>{" "}
-                  {registro.datacadastro}
-                </p>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
+      
     </main>
   );
 }

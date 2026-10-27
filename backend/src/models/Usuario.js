@@ -53,7 +53,7 @@ class Usuario {
     }
 
 
-    static async inserirUsuario(usuario) {
+    static async inserirUsuario(usuario, tipoUsuario = "aluno") {
         const {
             cpf, nome, datanascimento, celular, email, login, senha
         } = usuario;
@@ -68,11 +68,12 @@ class Usuario {
             .input("email", mssql.VarChar(100), email)
             .input("login", mssql.VarChar(50), login)
             .input("senha", mssql.VarChar(100), senhaHash)
+            .input("tipoUsuario", mssql.VarChar(20), tipoUsuario)
             .query(`
                 INSERT INTO reservas.usuario
-                    (cpf, nome, datanascimento, celular, email, login, senha)
+                    (cpf, nome, datanascimento, celular, email, login, senha, tipoUsuario)
                 VALUES
-                    (@cpf, @nome, @datanascimento, @celular, @email, @login, @senha)
+                    (@cpf, @nome, @datanascimento, @celular, @email, @login, @senha, @tipoUsuario)
             `);
     }
 }

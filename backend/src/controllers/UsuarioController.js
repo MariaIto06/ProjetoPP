@@ -27,6 +27,29 @@ class UsuarioController {
             });
         }
     }
+
+    static async inserirUsuarioProfessor(req, res) {
+        try {
+            const { tipoUsuario } = req.body;
+
+            if (!["aluno", "professor"].includes(tipoUsuario)) {
+                return res.status(400).json({
+                    message: "Tipo de usuário inválido"
+                });
+            }
+
+            await Usuario.inserirUsuario(req.body, tipoUsuario);
+
+            return res.status(201).json({
+                message: "Usuário cadastrado pelo professor com sucesso!"
+            });
+        } catch (erro) {
+            console.error(erro);
+            return res.status(500).json({
+                message: "Falha ao cadastrar usuário"
+            });
+        }
+    }
 }
 
 export default UsuarioController;

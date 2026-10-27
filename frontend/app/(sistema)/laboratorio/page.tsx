@@ -16,6 +16,10 @@ export default function Laboratorio() {
   const [carregando, setCarregando] = useState(true);
   const [cadastrando, setCadastrando] = useState(false);
   const [erro, setErro] = useState("");
+  const [laboratorioEditando, setLaboratorioEditando] =
+  useState<Laboratorio | null>(null);
+
+const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
   async function carregarDadosDosLaboratorios() {
     setCarregando(true);
@@ -50,6 +54,136 @@ export default function Laboratorio() {
   useEffect(() => {
     void carregarDadosDosLaboratorios();
   }, []);
+
+
+  async function excluirLaboratorio(id: number) {
+    const confirmou = window.confirm(
+        "Tem certeza que deseja excluir este laboratório?"
+    );
+
+    if (!confirmou) {
+      return;
+    }
+
+    const token = sessionStorage.getItem("token");
+
+    if (!token) {
+      alert("Você precisa fazer login novamente.");
+      return;
+    }
+
+    try {
+      const resposta = await fetch(
+        `http://localhost:8080/laboratorio/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+          Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (resposta.status === 401) {
+        alert("Você precisa fazer login novamente.");
+        return;
+      }
+
+      if (resposta.status === 403) {
+        alert("Apenas professores podem excluir laboratórios.");
+          return;        
+      }
+
+     if (!resposta.ok) {
+        alert("Não foi possível excluir o laboratório.");
+        return;
+     }
+
+      alert("Laboratório excluído com sucesso!");
+
+      await carregarDadosDosLaboratorios();
+      } catch (erro) {
+        console.error("Erro ao excluir laboratório:", erro);
+        alert("Não foi possível conectar ao servidor.");
+      }
+  }
+
+  async function salvarEdicao(evento: FormEvent<HTMLFormElement>) {
+    evento.preventDefault();
+
+    if (!laboratorioEditando) {
+      return;
+    }
+
+    const formulario = evento.currentTarget;
+    const formData = new FormData(formulario);
+
+    const laboratorioAtualizado = {
+      codigo: String(formData.get("codigo") ?? "").trim(),
+      nome: String(formData.get("nome") ?? "").trim(),
+      capacidade: Number(formData.get("capacidade")),
+      localizacao: String(formData.get("localizacao") ?? "").trim(),
+    };
+
+    if (
+      !laboratorioAtualizado.codigo ||
+      !laboratorioAtualizado.nome ||
+      !laboratorioAtualizado.localizacao ||
+      !Number.isInteger(laboratorioAtualizado.capacidade) ||
+      laboratorioAtualizado.capacidade <= 0
+    ) {
+      alert("Preencha todos os campos corretamente.");
+      return;
+    }
+
+    const token = sessionStorage.getItem("token");
+
+    if (!token) {
+      alert("Você precisa fazer login novamente.");
+      return;
+    }
+
+    setSalvandoEdicao(true);
+
+    try {
+      const resposta = await fetch(
+        `http://localhost:8080/laboratorio/${laboratorioEditando.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(laboratorioAtualizado),
+        }
+      );
+
+      if (resposta.status === 401) {
+        alert("Você precisa fazer login novamente.");
+        return;
+      }
+
+      if (resposta.status === 403) {
+        alert("Apenas professores podem alterar laboratórios.");
+        return;
+      }
+
+      if (!resposta.ok) {
+        alert("Não foi possível alterar o laboratório.");
+        return;
+      }
+
+      alert("Laboratório alterado com sucesso!");
+
+      setLaboratorioEditando(null);
+      await carregarDadosDosLaboratorios();
+
+    } catch (erro) {
+      console.error("Erro ao alterar laboratório:", erro);
+      alert("Não foi possível conectar ao servidor.");
+    } finally {
+      setSalvandoEdicao(false);
+    }
+  }
 
   async function cadastrar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -211,6 +345,86 @@ export default function Laboratorio() {
         </form>
       </section>
 
+      {laboratorioEditando && (
+        <section className={estilos.container}>
+          <h2 className={estilos.titulo}>
+            Editar laboratório
+          </h2>
+
+          <form
+            key={laboratorioEditando.id}
+            onSubmit={salvarEdicao}
+          >
+            <div className={estilos.campo}>
+              <label htmlFor="editarCodigo">Código</label>
+              <input
+                id="editarCodigo"
+                name="codigo"
+                type="text"
+                defaultValue={laboratorioEditando.codigo}
+                className={estilos.input}
+                required
+              />
+            </div>
+
+            <div className={estilos.campo}>
+              <label htmlFor="editarNome">Nome</label>
+              <input
+                id="editarNome"
+                name="nome"
+                type="text"
+                defaultValue={laboratorioEditando.nome}
+                className={estilos.input}
+                required
+              />
+            </div>
+
+            <div className={estilos.campo}>
+              <label htmlFor="editarCapacidade">Capacidade</label>
+              <input
+                id="editarCapacidade"
+                name="capacidade"
+                type="number"
+                min="1"
+                step="1"
+                defaultValue={laboratorioEditando.capacidade}
+                className={estilos.input}
+                required
+              />
+            </div>
+
+            <div className={estilos.campo}>
+              <label htmlFor="editarLocalizacao">Localização</label>
+              <input
+                id="editarLocalizacao"
+                name="localizacao"
+                type="text"
+                defaultValue={laboratorioEditando.localizacao}
+                className={estilos.input}
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className={estilos.botao}
+              disabled={salvandoEdicao}
+            >
+              {salvandoEdicao ? "Salvando..." : "Salvar alterações"}
+            </button>
+
+            <button
+              type="button"
+              className={estilos.botaoSecundario}
+              onClick={() => setLaboratorioEditando(null)}
+              disabled={salvandoEdicao}
+            >
+              Cancelar
+            </button>
+          </form>
+        </section>
+      )}
+
       <section>
         <div className={estilos.cabecalhoReservas}>
           <div>
@@ -271,6 +485,20 @@ export default function Laboratorio() {
                   <strong>Localização:</strong>{" "}
                   {registro.localizacao}
                 </p>
+                <button
+                  type="button"
+                  className={estilos.botaoSecundario}
+                  onClick={() => setLaboratorioEditando(registro)}
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  className={estilos.botaoSecundario}
+                  onClick={() => void excluirLaboratorio(registro.id)}
+                >
+                  Excluir
+                </button>
               </article>
             ))}
           </div>

@@ -8,4 +8,18 @@ const routes = express.Router();
 routes.get("/laboratorios", LabController.listarLaboratorios);
 routes.post("/laboratorio",autenticar, somenteProfessor, LabController.inserirLaboratorio);
 
+routes.put(
+    "/laboratorio/:id",
+    autenticar,
+    somenteProfessor,
+    LabController.alterarLaboratorio
+);
+
+routes.delete(
+    "/laboratorio/:id",
+    autenticar,
+    somenteProfessor,
+    LabController.excluirLaboratorio
+);
+
 export default routes;

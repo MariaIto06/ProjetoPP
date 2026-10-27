@@ -44,6 +44,45 @@ class Laboratorio {
                     (@codigo, @nome, @capacidade, @localizacao)
             `);
     }
+
+    static async alterarLaboratorio(id, laboratorio) {
+        const { codigo, nome, capacidade, localizacao } = laboratorio;
+
+        const conexao = await conectaBD();
+
+        const resultado = await conexao.request()
+            .input("id", mssql.Int, id)
+            .input("codigo", mssql.VarChar(20), codigo)
+            .input("nome", mssql.VarChar(100), nome)
+            .input("capacidade", mssql.Int, capacidade)
+            .input("localizacao", mssql.VarChar(100), localizacao)
+            .query(`
+                UPDATE reservas.laboratorio
+                SET
+                    codigo = @codigo,
+                    nome = @nome,
+                    capacidade = @capacidade,
+                    localizacao = @localizacao
+                WHERE id = @id
+            `);
+
+        return resultado.rowsAffected[0];
+    }
+
+
+    static async excluirLaboratorio(id) {
+        const conexao = await conectaBD();
+
+        const resultado = await conexao.request()
+            .input("id", mssql.Int, id)
+            .query(`
+                DELETE FROM reservas.laboratorio
+                WHERE id = @id
+            `);
+
+        return resultado.rowsAffected[0];
+    }
+
 }
 
 export default Laboratorio;

@@ -17,9 +17,38 @@ export default function Laboratorio() {
   const [cadastrando, setCadastrando] = useState(false);
   const [erro, setErro] = useState("");
   const [laboratorioEditando, setLaboratorioEditando] =
-  useState<Laboratorio | null>(null);
+    useState<Laboratorio | null>(null);
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  const [ehProfessor, setEhProfessor] = useState(false);
 
-const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  function verificarPerfil() {
+    const token = sessionStorage.getItem("token");
+
+    if (!token) {
+      setEhProfessor(false);
+      return;
+    }
+
+    try {
+      const payload = token.split(".")[1];
+
+      if (!payload) {
+        setEhProfessor(false);
+        return;
+      }
+
+      const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+
+      const preenchido =
+        base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+
+      const usuario = JSON.parse(atob(preenchido));
+
+      setEhProfessor(usuario.tipoUsuario === "professor");
+    } catch {
+      setEhProfessor(false);
+    }
+  }
 
   async function carregarDadosDosLaboratorios() {
     setCarregando(true);
@@ -52,13 +81,18 @@ const [salvandoEdicao, setSalvandoEdicao] = useState(false);
   }
 
   useEffect(() => {
+    verificarPerfil();
     void carregarDadosDosLaboratorios();
   }, []);
 
-
   async function excluirLaboratorio(id: number) {
+    if (!ehProfessor) {
+      alert("Apenas professores podem excluir laboratórios.");
+      return;
+    }
+
     const confirmou = window.confirm(
-        "Tem certeza que deseja excluir este laboratório?"
+      "Tem certeza que deseja excluir este laboratório?"
     );
 
     if (!confirmou) {
@@ -78,7 +112,7 @@ const [salvandoEdicao, setSalvandoEdicao] = useState(false);
         {
           method: "DELETE",
           headers: {
-          Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -90,25 +124,30 @@ const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
       if (resposta.status === 403) {
         alert("Apenas professores podem excluir laboratórios.");
-          return;        
+        return;
       }
 
-     if (!resposta.ok) {
+      if (!resposta.ok) {
         alert("Não foi possível excluir o laboratório.");
         return;
-     }
+      }
 
       alert("Laboratório excluído com sucesso!");
 
       await carregarDadosDosLaboratorios();
-      } catch (erro) {
-        console.error("Erro ao excluir laboratório:", erro);
-        alert("Não foi possível conectar ao servidor.");
-      }
+    } catch (erro) {
+      console.error("Erro ao excluir laboratório:", erro);
+      alert("Não foi possível conectar ao servidor.");
+    }
   }
 
   async function salvarEdicao(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
+
+    if (!ehProfessor) {
+      alert("Apenas professores podem alterar laboratórios.");
+      return;
+    }
 
     if (!laboratorioEditando) {
       return;
@@ -176,7 +215,6 @@ const [salvandoEdicao, setSalvandoEdicao] = useState(false);
 
       setLaboratorioEditando(null);
       await carregarDadosDosLaboratorios();
-
     } catch (erro) {
       console.error("Erro ao alterar laboratório:", erro);
       alert("Não foi possível conectar ao servidor.");
@@ -189,22 +227,19 @@ const [salvandoEdicao, setSalvandoEdicao] = useState(false);
     evento.preventDefault();
     setErro("");
 
+    if (!ehProfessor) {
+      setErro("Apenas professores podem cadastrar laboratórios.");
+      return;
+    }
+
     const formulario = evento.currentTarget;
     const formularioDados = new FormData(formulario);
 
     const novoLaboratorio = {
-      codigo: String(
-        formularioDados.get("codigo") ?? ""
-      ).trim(),
-      nome: String(
-        formularioDados.get("nome") ?? ""
-      ).trim(),
-      capacidade: Number(
-        formularioDados.get("capacidade")
-      ),
-      localizacao: String(
-        formularioDados.get("localizacao") ?? ""
-      ).trim(),
+      codigo: String(formularioDados.get("codigo") ?? "").trim(),
+      nome: String(formularioDados.get("nome") ?? "").trim(),
+      capacidade: Number(formularioDados.get("capacidade")),
+      localizacao: String(formularioDados.get("localizacao") ?? "").trim(),
     };
 
     if (
@@ -248,8 +283,8 @@ const [salvandoEdicao, setSalvandoEdicao] = useState(false);
         );
       }
 
-     if (resposta.status === 403) {
-        setErro("Apenas professores podem cadastrar salas.");
+      if (resposta.status === 403) {
+        setErro("Apenas professores podem cadastrar laboratórios.");
         return;
       }
 
@@ -281,71 +316,73 @@ const [salvandoEdicao, setSalvandoEdicao] = useState(false);
         Cadastro de Laboratórios
       </h1>
 
-      <section className={estilos.container}>
-        <form onSubmit={cadastrar}>
-          <div className={estilos.campo}>
-            <label htmlFor="codigo">Código</label>
-            <input
-              id="codigo"
-              name="codigo"
-              type="text"
-              className={estilos.input}
-              required
-            />
-          </div>
-
-          <div className={estilos.campo}>
-            <label htmlFor="nome">Nome</label>
-            <input
-              id="nome"
-              name="nome"
-              type="text"
-              className={estilos.input}
-              required
-            />
-          </div>
-
-          <div className={estilos.campo}>
-            <label htmlFor="capacidade">Capacidade</label>
-            <input
-              id="capacidade"
-              name="capacidade"
-              type="number"
-              min="1"
-              step="1"
-              className={estilos.input}
-              required
-            />
-          </div>
-
-          <div className={estilos.campo}>
-            <label htmlFor="localizacao">Localização</label>
-            <input
-              id="localizacao"
-              name="localizacao"
-              type="text"
-              className={estilos.input}
-              required
-            />
-          </div>
-
-          {erro && (
-            <div className={estilos.mensagemErro} role="alert">
-              {erro}
+      {ehProfessor && (
+        <section className={estilos.container}>
+          <form onSubmit={cadastrar}>
+            <div className={estilos.campo}>
+              <label htmlFor="codigo">Código</label>
+              <input
+                id="codigo"
+                name="codigo"
+                type="text"
+                className={estilos.input}
+                required
+              />
             </div>
-          )}
 
-          <button
-            type="submit"
-            className={estilos.botao}
-            disabled={cadastrando}
-          >
-            {cadastrando ? "Cadastrando..." : "Cadastrar"}
-          </button>
-        </form>
-      </section>
+            <div className={estilos.campo}>
+              <label htmlFor="nome">Nome</label>
+              <input
+                id="nome"
+                name="nome"
+                type="text"
+                className={estilos.input}
+                required
+              />
+            </div>
 
-      {laboratorioEditando && (
+            <div className={estilos.campo}>
+              <label htmlFor="capacidade">Capacidade</label>
+              <input
+                id="capacidade"
+                name="capacidade"
+                type="number"
+                min="1"
+                step="1"
+                className={estilos.input}
+                required
+              />
+            </div>
+
+            <div className={estilos.campo}>
+              <label htmlFor="localizacao">Localização</label>
+              <input
+                id="localizacao"
+                name="localizacao"
+                type="text"
+                className={estilos.input}
+                required
+              />
+            </div>
+
+            {erro && (
+              <div className={estilos.mensagemErro} role="alert">
+                {erro}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className={estilos.botao}
+              disabled={cadastrando}
+            >
+              {cadastrando ? "Cadastrando..." : "Cadastrar"}
+            </button>
+          </form>
+        </section>
+      )}
+
+      {ehProfessor && laboratorioEditando && (
         <section className={estilos.container}>
           <h2 className={estilos.titulo}>
             Editar laboratório
@@ -448,6 +485,12 @@ const [salvandoEdicao, setSalvandoEdicao] = useState(false);
           </button>
         </div>
 
+        {erro && !ehProfessor && (
+          <div className={estilos.mensagemErro} role="alert">
+            {erro}
+          </div>
+        )}
+
         {carregando ? (
           <div className={estilos.estadoVazio}>
             Carregando laboratórios...
@@ -485,20 +528,26 @@ const [salvandoEdicao, setSalvandoEdicao] = useState(false);
                   <strong>Localização:</strong>{" "}
                   {registro.localizacao}
                 </p>
-                <button
-                  type="button"
-                  className={estilos.botaoSecundario}
-                  onClick={() => setLaboratorioEditando(registro)}
-                >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  className={estilos.botaoSecundario}
-                  onClick={() => void excluirLaboratorio(registro.id)}
-                >
-                  Excluir
-                </button>
+
+                {ehProfessor && (
+                  <>
+                    <button
+                      type="button"
+                      className={estilos.botaoSecundario}
+                      onClick={() => setLaboratorioEditando(registro)}
+                    >
+                      Editar
+                    </button>
+
+                    <button
+                      type="button"
+                      className={estilos.botaoSecundario}
+                      onClick={() => void excluirLaboratorio(registro.id)}
+                    >
+                      Excluir
+                    </button>
+                  </>
+                )}
               </article>
             ))}
           </div>
@@ -507,3 +556,4 @@ const [salvandoEdicao, setSalvandoEdicao] = useState(false);
     </main>
   );
 }
+

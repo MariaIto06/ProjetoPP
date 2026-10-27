@@ -16,6 +16,36 @@ export default function Salas() {
   const [carregando, setCarregando] = useState(true);
   const [cadastrando, setCadastrando] = useState(false);
   const [erro, setErro] = useState("");
+  const [ehProfessor, setEhProfessor] = useState(false);
+
+  function verificarPerfil() {
+    const token = sessionStorage.getItem("token");
+
+    if (!token) {
+      setEhProfessor(false);
+      return;
+    }
+
+    try {
+      const payload = token.split(".")[1];
+
+      if (!payload) {
+        setEhProfessor(false);
+        return;
+      }
+
+      const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+
+      const preenchido =
+        base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+
+      const usuario = JSON.parse(atob(preenchido));
+
+      setEhProfessor(usuario.tipoUsuario === "professor");
+    } catch {
+      setEhProfessor(false);
+    }
+  }
 
   async function carregarSalas() {
     setCarregando(true);
@@ -44,6 +74,7 @@ export default function Salas() {
   }
 
   useEffect(() => {
+    verificarPerfil();
     void carregarSalas();
   }, []);
 
@@ -51,6 +82,11 @@ export default function Salas() {
     evento.preventDefault();
 
     setErro("");
+
+    if (!ehProfessor) {
+      setErro("Apenas professores podem cadastrar salas.");
+      return;
+    }
 
     const formulario = evento.currentTarget;
     const formData = new FormData(formulario);
@@ -98,12 +134,10 @@ export default function Salas() {
         throw new Error("Você precisa fazer login novamente.");
       }
 
-      
-       if (resposta.status === 403) {
+      if (resposta.status === 403) {
         setErro("Apenas professores podem cadastrar salas.");
         return;
       }
-      
 
       if (!resposta.ok) {
         throw new Error(
@@ -115,14 +149,14 @@ export default function Salas() {
 
       await carregarSalas();
     } catch (erro) {
-    console.error("Erro ao cadastrar sala:", erro);
+      console.error("Erro ao cadastrar sala:", erro);
 
-    setErro(
-      erro instanceof Error
-        ? erro.message
-        : "Não foi possível conectar ao servidor."
-    );
-  } finally {
+      setErro(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível conectar ao servidor."
+      );
+    } finally {
       setCadastrando(false);
     }
   }
@@ -131,73 +165,75 @@ export default function Salas() {
     <main className={estilos.pagina}>
       <h1 className={estilos.titulo}>Cadastro de Salas</h1>
 
-      <section className={estilos.container}>
-        <form onSubmit={cadastrar}>
-          <div className={estilos.campo}>
-            <label htmlFor="codigo">Código</label>
+      {ehProfessor && (
+        <section className={estilos.container}>
+          <form onSubmit={cadastrar}>
+            <div className={estilos.campo}>
+              <label htmlFor="codigo">Código</label>
 
-            <input
-              id="codigo"
-              name="codigo"
-              type="text"
-              className={estilos.input}
-              required
-            />
-          </div>
-
-          <div className={estilos.campo}>
-            <label htmlFor="nome">Nome</label>
-
-            <input
-              id="nome"
-              name="nome"
-              type="text"
-              className={estilos.input}
-              required
-            />
-          </div>
-
-          <div className={estilos.campo}>
-            <label htmlFor="capacidade">Capacidade</label>
-
-            <input
-              id="capacidade"
-              name="capacidade"
-              type="number"
-              min="1"
-              step="1"
-              className={estilos.input}
-              required
-            />
-          </div>
-
-          <div className={estilos.campo}>
-            <label htmlFor="localizacao">Localização</label>
-
-            <input
-              id="localizacao"
-              name="localizacao"
-              type="text"
-              className={estilos.input}
-              required
-            />
-          </div>
-
-          {erro && (
-            <div className={estilos.mensagemErro} role="alert">
-              {erro}
+              <input
+                id="codigo"
+                name="codigo"
+                type="text"
+                className={estilos.input}
+                required
+              />
             </div>
-          )}
 
-          <button
-            type="submit"
-            className={estilos.botao}
-            disabled={cadastrando}
-          >
-            {cadastrando ? "Cadastrando..." : "Cadastrar"}
-          </button>
-        </form>
-      </section>
+            <div className={estilos.campo}>
+              <label htmlFor="nome">Nome</label>
+
+              <input
+                id="nome"
+                name="nome"
+                type="text"
+                className={estilos.input}
+                required
+              />
+            </div>
+
+            <div className={estilos.campo}>
+              <label htmlFor="capacidade">Capacidade</label>
+
+              <input
+                id="capacidade"
+                name="capacidade"
+                type="number"
+                min="1"
+                step="1"
+                className={estilos.input}
+                required
+              />
+            </div>
+
+            <div className={estilos.campo}>
+              <label htmlFor="localizacao">Localização</label>
+
+              <input
+                id="localizacao"
+                name="localizacao"
+                type="text"
+                className={estilos.input}
+                required
+              />
+            </div>
+
+            {erro && (
+              <div className={estilos.mensagemErro} role="alert">
+                {erro}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className={estilos.botao}
+              disabled={cadastrando}
+            >
+              {cadastrando ? "Cadastrando..." : "Cadastrar"}
+            </button>
+          </form>
+        </section>
+      )}
 
       <section>
         <div className={estilos.cabecalhoReservas}>
@@ -218,6 +254,12 @@ export default function Salas() {
             {carregando ? "Atualizando..." : "Atualizar lista"}
           </button>
         </div>
+
+        {erro && !ehProfessor && (
+          <div className={estilos.mensagemErro} role="alert">
+            {erro}
+          </div>
+        )}
 
         {carregando ? (
           <div className={estilos.estadoVazio}>
@@ -253,3 +295,4 @@ export default function Salas() {
     </main>
   );
 }
+

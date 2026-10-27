@@ -7,14 +7,14 @@ class AuthController {
         try {
             const { login, senha } = req.body;
 
-            // 1. Verifica se os campos foram informados
+            
             if (!login || !senha) {
                 return res.status(400).json({
                     message: "Informe o login e a senha"
                 });
             }
 
-            // 2. Busca o usuário pelo login
+            
             const usuario = await Usuario.buscarPorLogin(login);
 
             if (!usuario) {
@@ -23,7 +23,7 @@ class AuthController {
                 });
             }
 
-            // 3. Compara a senha digitada com o hash do banco
+            
              const senhaCorreta = await bcrypt.compare(
                 senha,
                 usuario.senha
@@ -35,7 +35,7 @@ class AuthController {
                 });
             }
 
-            // 4. Gera o token após validar as credenciais
+            
             if (!process.env.JWT_SECRET) {
                 throw new Error("JWT_SECRET não configurado");
             }
@@ -49,7 +49,7 @@ class AuthController {
                 { expiresIn: "8h" }
             );
 
-            // 5. Devolve o token ao frontend
+            
             return res.status(200).json({
                 message: "Login realizado com sucesso",
                 token: token

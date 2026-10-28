@@ -39,6 +39,7 @@ export default function Status() {
   const [enviando, setEnviando] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [ehProfessor, setEhProfessor] = useState(false);
+  const [idUsuarioLogado, setIdUsuarioLogado] = useState<number | null>(null);
   const [idEditando, setIdEditando] = useState<number | null>(null);
 
   function verificarPerfil() {
@@ -46,20 +47,28 @@ export default function Status() {
 
     if (!token) {
       setEhProfessor(false);
+      setIdUsuarioLogado(null);
       return;
     }
 
     try {
       const partes = token.split(".");
-      const dadosToken = JSON.parse(atob(partes[1]));
+      const payload = partes[1]
+        .replace(/-/g, "+")
+        .replace(/_/g, "/");
 
-      if (dadosToken.tipoUsuario === "professor") {
-        setEhProfessor(true);
-      } else {
-        setEhProfessor(false);
-      }
+      const dadosToken = JSON.parse(atob(payload));
+
+      setEhProfessor(dadosToken.tipoUsuario === "professor");
+
+      const id = Number(dadosToken.id);
+
+      setIdUsuarioLogado(
+        Number.isInteger(id) && id > 0 ? id : null
+      );
     } catch {
       setEhProfessor(false);
+      setIdUsuarioLogado(null);
     }
   }
 
@@ -138,6 +147,10 @@ export default function Status() {
 
     if (!ehProfessor) {
       alert("Somente professores podem cadastrar ou editar reservas.");
+      return;
+    }
+    if (new Date(inicio).getTime() < Date.now()) {
+      alert("Não é possível reservar uma data ou horário que já passou.");
       return;
     }
 
@@ -484,7 +497,9 @@ export default function Status() {
                   </div>
                 </div>
 
-                {ehProfessor && (
+                {ehProfessor &&
+                idUsuarioLogado !== null &&
+                Number(reserva.idUsuario) === idUsuarioLogado && (
                   <div className={styles.acoesReserva}>
                     <button
                       type="button"

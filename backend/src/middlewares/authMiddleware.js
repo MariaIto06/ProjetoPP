@@ -28,13 +28,28 @@ const autenticar = (req, res, next) => {
 };
 
 const somenteProfessor = (req, res, next) => {
-    if (req.usuario?.tipoUsuario !== "professor") {
+    const tipoUsuario = req.usuario?.tipoUsuario;
+
+    if (
+        tipoUsuario !== "professor" &&
+        tipoUsuario !== "administrador"
+    ) {
         return res.status(403).json({
-            message: "Acesso permitido apenas para professores"
+            message: "Acesso permitido apenas para professores e administradores."
         });
     }
 
     next();
 };
 
-export { autenticar, somenteProfessor };
+const somenteAdministrador = (req, res, next) => {
+    if (req.usuario?.tipoUsuario !== "administrador") {
+        return res.status(403).json({
+            message: "Acesso permitido apenas para administradores."
+        });
+    }
+
+    next();
+};
+
+export { autenticar, somenteProfessor, somenteAdministrador };

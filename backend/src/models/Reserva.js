@@ -135,7 +135,7 @@ class Reserva {
         }
     }
 
-    static async atualizarReserva(id, reserva) {
+    static async atualizarReserva(id, idUsuario, reserva) {
         const {
             idSala,
             idLaboratorio,
@@ -154,6 +154,29 @@ class Reserva {
             );
 
             transacaoIniciada = true;
+
+            // Verificar quem criou a reserva
+            const proprietario = await transacao.request()
+                .input("id", mssql.Int, id)
+                .query(`
+                    SELECT idUsuario
+                    FROM reservas.reserva WITH (UPDLOCK, HOLDLOCK)
+                    WHERE id = @id
+                `);
+
+            if (proprietario.recordset.length === 0) {
+                const erro = new Error("Reserva não encontrada.");
+                erro.code = "RESERVA_NAO_ENCONTRADA";
+                throw erro;
+            }
+
+            if (Number(proprietario.recordset[0].idUsuario) !== idUsuario) {
+                const erro = new Error(
+                    "Você só pode editar reservas feitas por você."
+                );
+                erro.code = "RESERVA_SEM_PERMISSAO";
+                throw erro;
+            }
 
             const resultado = await transacao.request()
                 .input("id", mssql.Int, id)
@@ -197,6 +220,7 @@ class Reserva {
 
             const atualizacao = await transacao.request()
                 .input("id", mssql.Int, id)
+                .input("idUsuario", mssql.Int, idUsuario)
                 .input("idSala", mssql.Int, idSala ?? null)
                 .input(
                     "idLaboratorio",
@@ -212,7 +236,7 @@ class Reserva {
                         idLaboratorio = @idLaboratorio,
                         inicio = @inicio,
                         fim = @fim
-                    WHERE id = @id
+                    WHERE id = @id AND idUsuario = @idUsuario
                 `);
 
             if (atualizacao.rowsAffected[0] === 0) {
@@ -238,21 +262,43 @@ class Reserva {
         }
     }
 
-    static async excluirReserva(id) {
+    static async excluirReserva(id, idUsuario) {
         const conexao = await conectaBD();
 
         const resultado = await conexao.request()
             .input("id", mssql.Int, id)
+            .input("idUsuario", mssql.Int, idUsuario)
             .query(`
                 DELETE FROM reservas.reserva
+                OUTPUT DELETED.id
+                WHERE id = @id
+                AND idUsuario = @idUsuario
+            `);
+
+        if (resultado.recordset.length > 0) {
+            return;
+        }
+
+        // Descobrir se a reserva não existe ou pertence a outra pessoa
+        const verificacao = await conexao.request()
+            .input("id", mssql.Int, id)
+            .query(`
+                SELECT id
+                FROM reservas.reserva
                 WHERE id = @id
             `);
 
-        if (resultado.rowsAffected[0] === 0) {
+        if (verificacao.recordset.length === 0) {
             const erro = new Error("Reserva não encontrada.");
             erro.code = "RESERVA_NAO_ENCONTRADA";
             throw erro;
         }
+
+        const erro = new Error(
+            "Você só pode excluir reservas feitas por você."
+        );
+        erro.code = "RESERVA_SEM_PERMISSAO";
+        throw erro;
     }
 }
 

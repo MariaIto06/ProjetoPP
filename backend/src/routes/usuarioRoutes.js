@@ -2,30 +2,31 @@ import express from "express";
 import UsuarioController from "../controllers/UsuarioController.js";
 import {
     autenticar,
-    somenteProfessor
+    somenteAdministrador
 } from "../middlewares/authMiddleware.js";
 
 const routes = express.Router();
 
-// Somente professores podem consultar os usuários
+// Somente administradores podem consultar usuários
 routes.get(
     "/usuarios",
     autenticar,
-    somenteProfessor,
+    somenteAdministrador,
     UsuarioController.listarUsuarios
 );
 
-// Cadastro público: cria apenas alunos
+// Cadastro público: sempre cria uma conta de aluno
 routes.post(
     "/usuario",
     UsuarioController.inserirUsuario
 );
 
-// Cadastro administrativo: somente professores
+// Somente administradores podem cadastrar usuários
+// com perfis de aluno ou professor
 routes.post(
     "/usuarios/administrativo",
     autenticar,
-    somenteProfessor,
+    somenteAdministrador,
     UsuarioController.inserirUsuarioProfessor
 );
 

@@ -101,6 +101,14 @@ function validarDadosReserva({
             erro: "Informe datas e horários válidos"
         };
     }
+    // Não permitir reservas em datas ou horários passados
+    const agora = new Date();
+
+    if (dataInicio.getTime() < agora.getTime()) {
+        return {
+            erro: "Não é possível reservar uma data ou horário que já passou."
+        };
+    }
 
     // A reserva deve começar e terminar no mesmo dia
     if (
@@ -141,12 +149,6 @@ function validarDadosReserva({
     if (duracao <= 0) {
         return {
             erro: "O horário final deve ser posterior ao inicial."
-        };
-    }
-
-    if (duracao > 165) {
-        return {
-            erro: "A reserva não pode ultrapassar 165 minutos."
         };
     }
 
@@ -220,10 +222,17 @@ class ReservaController {
     static async atualizarReserva(req, res) {
         try {
             const id = Number(req.params.id);
+            const idUsuario = Number(req.usuario?.id);
 
             if (!Number.isInteger(id) || id <= 0) {
                 return res.status(400).json({
                     message: "ID da reserva inválido."
+                });
+            }
+
+            if (!Number.isInteger(idUsuario) || idUsuario <= 0) {
+                return res.status(401).json({
+                    message: "Usuário não autenticado."
                 });
             }
 
@@ -237,6 +246,7 @@ class ReservaController {
 
             await Reserva.atualizarReserva(
                 id,
+                idUsuario,
                 validacao.dados
             );
 
@@ -256,6 +266,12 @@ class ReservaController {
                 });
             }
 
+            if (erro.code === "RESERVA_SEM_PERMISSAO") {
+                return res.status(403).json({
+                    message: erro.message
+                });
+            }
+
             console.error(erro);
 
             return res.status(500).json({
@@ -267,6 +283,7 @@ class ReservaController {
     static async excluirReserva(req, res) {
         try {
             const id = Number(req.params.id);
+            const idUsuario = Number(req.usuario?.id);
 
             if (!Number.isInteger(id) || id <= 0) {
                 return res.status(400).json({
@@ -274,7 +291,13 @@ class ReservaController {
                 });
             }
 
-            await Reserva.excluirReserva(id);
+            if (!Number.isInteger(idUsuario) || idUsuario <= 0) {
+                return res.status(401).json({
+                    message: "Usuário não autenticado."
+                });
+            }
+
+            await Reserva.excluirReserva(id, idUsuario);
 
             return res.status(200).json({
                 message: "Reserva excluída com sucesso!"
@@ -282,6 +305,12 @@ class ReservaController {
         } catch (erro) {
             if (erro.code === "RESERVA_NAO_ENCONTRADA") {
                 return res.status(404).json({
+                    message: erro.message
+                });
+            }
+
+            if (erro.code === "RESERVA_SEM_PERMISSAO") {
+                return res.status(403).json({
                     message: erro.message
                 });
             }

@@ -32,7 +32,109 @@ class Reserva {
         return result.recordset;
     }
 
-    
+    static async inserirReserva(reserva) {
+        const {
+            idSala,
+            idLaboratorio,
+            idUsuario,
+            inicio,
+            fim
+        } = reserva;
+
+        const conexao = await conectaBD();
+        const transacao = new mssql.Transaction(conexao);
+
+        let transacaoIniciada = false;
+
+        try {
+            await transacao.begin(
+                mssql.ISOLATION_LEVEL.SERIALIZABLE
+            );
+
+            transacaoIniciada = true;
+
+            const resultado = await transacao.request()
+                .input("idSala", mssql.Int, idSala ?? null)
+                .input(
+                    "idLaboratorio",
+                    mssql.Int,
+                    idLaboratorio ?? null
+                )
+                .input("inicio", mssql.DateTime2, inicio)
+                .input("fim", mssql.DateTime2, fim)
+                .query(`
+                    SELECT TOP 1 r.id
+                    FROM reservas.reserva r WITH (UPDLOCK, HOLDLOCK)
+                    WHERE
+                        (
+                            (
+                                @idSala IS NOT NULL
+                                AND r.idSala = @idSala
+                            )
+                            OR
+                            (
+                                @idLaboratorio IS NOT NULL
+                                AND r.idLaboratorio = @idLaboratorio
+                            )
+                        )
+                        AND r.inicio < DATEADD(MINUTE, 15, @fim)
+                        AND r.fim > DATEADD(MINUTE, -15, @inicio)
+                `);
+
+            if (resultado.recordset.length > 0) {
+                const erro = new Error(
+                    "Esse recurso já possui uma reserva nesse horário ou não há 15 minutos de intervalo."
+                );
+
+                erro.code = "RESERVA_CONFLITO";
+
+                throw erro;
+            }
+
+            await transacao.request()
+                .input("idSala", mssql.Int, idSala ?? null)
+                .input(
+                    "idLaboratorio",
+                    mssql.Int,
+                    idLaboratorio ?? null
+                )
+                .input("idUsuario", mssql.Int, idUsuario)
+                .input("inicio", mssql.DateTime2, inicio)
+                .input("fim", mssql.DateTime2, fim)
+                .query(`
+                    INSERT INTO reservas.reserva (
+                        idSala,
+                        idLaboratorio,
+                        idUsuario,
+                        inicio,
+                        fim
+                    )
+                    VALUES (
+                        @idSala,
+                        @idLaboratorio,
+                        @idUsuario,
+                        @inicio,
+                        @fim
+                    )
+                `);
+
+            await transacao.commit();
+        } catch (erro) {
+            if (transacaoIniciada) {
+                try {
+                    await transacao.rollback();
+                } catch (erroRollback) {
+                    console.error(
+                        "Erro ao desfazer transação:",
+                        erroRollback
+                    );
+                }
+            }
+
+            throw erro;
+        }
+    }
+
     static async atualizarReserva(id, reserva) {
         const {
             idSala,
@@ -53,7 +155,6 @@ class Reserva {
 
             transacaoIniciada = true;
 
-            // Verificar conflitos, ignorando a própria reserva
             const resultado = await transacao.request()
                 .input("id", mssql.Int, id)
                 .input("idSala", mssql.Int, idSala ?? null)
@@ -153,10 +254,7 @@ class Reserva {
             throw erro;
         }
     }
-
-
-
-    }
-
+}
 
 export default Reserva;
+

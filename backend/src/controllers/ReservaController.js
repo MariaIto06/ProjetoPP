@@ -1,7 +1,5 @@
-
 import Reserva from "../models/Reserva.js";
 
-// Validar os dados utilizados no cadastro e na edição
 function validarDadosReserva({
     idSala,
     idLaboratorio,

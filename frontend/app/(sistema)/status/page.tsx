@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import styles from "./status.module.css";
 
 interface Recurso {
@@ -24,24 +25,6 @@ interface Reserva {
   nomeLaboratorio: string | null;
 }
 
-interface ResultadoAPI {
-  message?: string;
-}
-
-async function lerResposta(resposta: Response): Promise<any> {
-  const texto = await resposta.text();
-
-  if (!texto) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(texto);
-  } catch {
-    return { message: texto };
-  }
-}
-
 export default function Status() {
   const [dados, setDados] = useState<Reserva[]>([]);
   const [salas, setSalas] = useState<Recurso[]>([]);
@@ -52,12 +35,9 @@ export default function Status() {
   const [inicio, setInicio] = useState("");
   const [fim, setFim] = useState("");
 
-  const [carregando, setCarregando] = useState(true);
+  const [carregando, setCarregando] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [excluindo, setExcluindo] = useState<number | null>(null);
-
-  const [erro, setErro] = useState("");
-  const [mensagem, setMensagem] = useState("");
+  const [excluindo, setExcluindo] = useState(false);
   const [ehProfessor, setEhProfessor] = useState(false);
   const [idEditando, setIdEditando] = useState<number | null>(null);
 
@@ -70,23 +50,14 @@ export default function Status() {
     }
 
     try {
-      const payload = token.split(".")[1];
+      const partes = token.split(".");
+      const dadosToken = JSON.parse(atob(partes[1]));
 
-      if (!payload) {
+      if (dadosToken.tipoUsuario === "professor") {
+        setEhProfessor(true);
+      } else {
         setEhProfessor(false);
-        return;
       }
-
-      const base64 = payload
-        .replace(/-/g, "+")
-        .replace(/_/g, "/");
-
-      const preenchido =
-        base64 + "=".repeat((4 - (base64.length % 4)) % 4);
-
-      const usuario = JSON.parse(atob(preenchido));
-
-      setEhProfessor(usuario.tipoUsuario === "professor");
     } catch {
       setEhProfessor(false);
     }
@@ -94,40 +65,25 @@ export default function Status() {
 
   async function carregarReservas() {
     setCarregando(true);
-    setErro("");
 
     try {
       const token = sessionStorage.getItem("token");
 
-      if (!token) {
-        throw new Error("Faça login para consultar as reservas.");
-      }
-
       const resposta = await fetch("http://localhost:8080/reservas", {
         headers: {
-          Authorization: `Bearer ${token}`,
-        },
+          Authorization: `Bearer ${token}`
+        }
       });
 
-      const resultado = await lerResposta(resposta);
-
       if (!resposta.ok) {
-        throw new Error(
-          resultado.message || "Não foi possível carregar as reservas."
-        );
+        alert("Erro ao carregar as reservas.");
+        return;
       }
 
-      if (!Array.isArray(resultado)) {
-        throw new Error("A API retornou uma lista de reservas inválida.");
-      }
-
+      const resultado = await resposta.json();
       setDados(resultado);
-    } catch (erro) {
-      setErro(
-        erro instanceof Error
-          ? erro.message
-          : "Erro ao consultar as reservas."
-      );
+    } catch {
+      alert("Não foi possível carregar as reservas.");
     } finally {
       setCarregando(false);
     }
@@ -135,37 +91,25 @@ export default function Status() {
 
   async function carregarRecursos() {
     try {
-      const [respostaSalas, respostaLaboratorios] = await Promise.all([
-        fetch("http://localhost:8080/salas"),
-        fetch("http://localhost:8080/laboratorios"),
-      ]);
+      const respostaSalas = await fetch("http://localhost:8080/salas");
+      const respostaLaboratorios = await fetch(
+        "http://localhost:8080/laboratorios"
+      );
 
-      const dadosSalas = await lerResposta(respostaSalas);
-      const dadosLaboratorios = await lerResposta(respostaLaboratorios);
-
-      if (!respostaSalas.ok || !respostaLaboratorios.ok) {
-        throw new Error("Não foi possível carregar salas e laboratórios.");
-      }
-
-      if (!Array.isArray(dadosSalas) || !Array.isArray(dadosLaboratorios)) {
-        throw new Error("A API retornou uma lista de recursos inválida.");
-      }
+      const dadosSalas = await respostaSalas.json();
+      const dadosLaboratorios = await respostaLaboratorios.json();
 
       setSalas(dadosSalas);
       setLaboratorios(dadosLaboratorios);
-    } catch (erro) {
-      setErro(
-        erro instanceof Error
-          ? erro.message
-          : "Erro ao carregar os recursos disponíveis."
-      );
+    } catch {
+      alert("Erro ao carregar salas e laboratórios.");
     }
   }
 
   useEffect(() => {
     verificarPerfil();
-    void carregarReservas();
-    void carregarRecursos();
+    carregarReservas();
+    carregarRecursos();
   }, []);
 
   function limparFormulario() {
@@ -178,10 +122,6 @@ export default function Status() {
   function formatarParaInput(data: string) {
     const convertida = new Date(data);
 
-    if (Number.isNaN(convertida.getTime())) {
-      return "";
-    }
-
     const ano = convertida.getFullYear();
     const mes = String(convertida.getMonth() + 1).padStart(2, "0");
     const dia = String(convertida.getDate()).padStart(2, "0");
@@ -191,34 +131,30 @@ export default function Status() {
     return `${ano}-${mes}-${dia}T${hora}:${minuto}`;
   }
 
-  async function cadastrarReserva(evento: FormEvent<HTMLFormElement>) {
+  async function cadastrarReserva(
+    evento: React.FormEvent<HTMLFormElement>
+  ) {
     evento.preventDefault();
-    setErro("");
-    setMensagem("");
 
     if (!ehProfessor) {
-      setErro("Somente professores podem cadastrar ou editar reservas.");
+      alert("Somente professores podem cadastrar ou editar reservas.");
       return;
     }
 
     if (!idRecurso || !inicio || !fim) {
-      setErro("Preencha todos os campos da reserva.");
+      alert("Preencha todos os campos.");
       return;
     }
 
-    if (
-      Number.isNaN(new Date(inicio).getTime()) ||
-      Number.isNaN(new Date(fim).getTime()) ||
-      new Date(fim).getTime() <= new Date(inicio).getTime()
-    ) {
-      setErro("Informe datas válidas e um término posterior ao início.");
+    if (new Date(fim).getTime() <= new Date(inicio).getTime()) {
+      alert("O término deve ser posterior ao início.");
       return;
     }
 
     const token = sessionStorage.getItem("token");
 
     if (!token) {
-      setErro("Faça login para cadastrar uma reserva.");
+      alert("Faça login novamente.");
       return;
     }
 
@@ -227,60 +163,60 @@ export default function Status() {
       idLaboratorio:
         tipoRecurso === "laboratorio" ? Number(idRecurso) : null,
       inicio,
-      fim,
+      fim
     };
 
     setEnviando(true);
 
     try {
-      const editando = idEditando !== null;
+      let resposta;
 
-      const resposta = await fetch(
-        editando
-          ? `http://localhost:8080/reservas/${idEditando}`
-          : "http://localhost:8080/reservas",
-        {
-          method: editando ? "PUT" : "POST",
+      if (idEditando === null) {
+        resposta = await fetch("http://localhost:8080/reservas", {
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${token}`
           },
-          body: JSON.stringify(novaReserva),
-        }
-      );
-
-      const resultado: ResultadoAPI = await lerResposta(resposta);
-
-      if (!resposta.ok) {
-        throw new Error(
-          resultado.message ||
-            (editando
-              ? "Não foi possível atualizar a reserva."
-              : "Não foi possível cadastrar a reserva.")
+          body: JSON.stringify(novaReserva)
+        });
+      } else {
+        resposta = await fetch(
+          `http://localhost:8080/reservas/${idEditando}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify(novaReserva)
+          }
         );
       }
 
-      setMensagem(
-        resultado.message ||
-          (editando
-            ? "Reserva atualizada com sucesso!"
-            : "Reserva cadastrada com sucesso!")
-      );
+      const resultado = await resposta.json().catch(() => null);
+
+      if (!resposta.ok) {
+        alert(
+          resultado?.message ||
+          resultado?.erro ||
+          `Não foi possível salvar a reserva. Código: ${resposta.status}`
+        );
+        return;
+      }
+
+      alert("Reserva salva com sucesso!");
 
       limparFormulario();
       await carregarReservas();
-    } catch (erro) {
-      setErro(
-        erro instanceof Error ? erro.message : "Erro ao salvar a reserva."
-      );
+    } catch {
+      alert("Erro ao salvar a reserva. Verifique a conexão com o servidor.");
     } finally {
       setEnviando(false);
     }
   }
 
   function editarReserva(reserva: Reserva) {
-    setErro("");
-    setMensagem("");
     setIdEditando(reserva.id);
 
     if (reserva.idSala !== null) {
@@ -288,36 +224,33 @@ export default function Status() {
       setIdRecurso(String(reserva.idSala));
     } else {
       setTipoRecurso("laboratorio");
-      setIdRecurso(String(reserva.idLaboratorio ?? ""));
+      setIdRecurso(String(reserva.idLaboratorio));
     }
 
     setInicio(formatarParaInput(reserva.inicio));
     setFim(formatarParaInput(reserva.fim));
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo(0, 0);
   }
 
   async function excluirReserva(id: number) {
     if (!ehProfessor) {
-      setErro("Somente professores podem excluir reservas.");
+      alert("Somente professores podem excluir reservas.");
       return;
     }
 
-    if (!window.confirm(`Deseja realmente excluir a reserva #${id}?`)) {
+    if (!window.confirm("Deseja realmente excluir esta reserva?")) {
       return;
     }
-
-    setErro("");
-    setMensagem("");
 
     const token = sessionStorage.getItem("token");
 
     if (!token) {
-      setErro("Faça login para excluir uma reserva.");
+      alert("Faça login novamente.");
       return;
     }
 
-    setExcluindo(id);
+    setExcluindo(true);
 
     try {
       const resposta = await fetch(
@@ -325,45 +258,40 @@ export default function Status() {
         {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${token}`,
-          },
+            Authorization: `Bearer ${token}`
+          }
         }
       );
 
-      const resultado: ResultadoAPI = await lerResposta(resposta);
+      const resultado = await resposta.json().catch(() => null);
 
       if (!resposta.ok) {
-        throw new Error(
-          resultado.message || "Não foi possível excluir a reserva."
+        alert(
+          resultado?.message ||
+          resultado?.erro ||
+          `Não foi possível excluir a reserva. Código: ${resposta.status}`
         );
+        return;
       }
 
-      setMensagem(resultado.message || "Reserva excluída com sucesso!");
+      alert("Reserva excluída com sucesso!");
 
       if (idEditando === id) {
         limparFormulario();
       }
 
       await carregarReservas();
-    } catch (erro) {
-      setErro(
-        erro instanceof Error ? erro.message : "Erro ao excluir a reserva."
-      );
+    } catch {
+      alert("Erro ao excluir a reserva.");
     } finally {
-      setExcluindo(null);
+      setExcluindo(false);
     }
   }
 
   function formatarDataHora(data: string) {
-    const convertida = new Date(data);
-
-    if (Number.isNaN(convertida.getTime())) {
-      return "Data inválida";
-    }
-
-    return convertida.toLocaleString("pt-BR", {
+    return new Date(data).toLocaleString("pt-BR", {
       dateStyle: "short",
-      timeStyle: "short",
+      timeStyle: "short"
     });
   }
 
@@ -372,13 +300,7 @@ export default function Status() {
   return (
     <main className={styles.container}>
       <header className={styles.cabecalho}>
-        <div className={styles.iconeCabecalho} aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <rect x="3" y="5" width="18" height="16" rx="2" />
-            <path d="M16 3v4M8 3v4M3 10h18" />
-            <path d="m9 15 2 2 4-4" />
-          </svg>
-        </div>
+        <div className={styles.iconeCabecalho}>📅</div>
 
         <div>
           <p className={styles.subtitulo}>GERENCIAMENTO DE ESPAÇOS</p>
@@ -392,21 +314,17 @@ export default function Status() {
       {ehProfessor && (
         <section className={styles.painel}>
           <div className={styles.tituloSecao}>
-            <div className={styles.iconeSecao} aria-hidden="true">
+            <div className={styles.iconeSecao}>
               {idEditando !== null ? "✎" : "+"}
             </div>
 
             <div>
               <h2>
                 {idEditando !== null
-                  ? `Editar reserva #${idEditando}`
+                  ? "Editar reserva"
                   : "Cadastrar reserva"}
               </h2>
-              <p>
-                {idEditando !== null
-                  ? "Altere os dados e salve as modificações."
-                  : "Preencha os dados para solicitar uma reserva."}
-              </p>
+              <p>Preencha os dados da reserva.</p>
             </div>
           </div>
 
@@ -436,6 +354,7 @@ export default function Status() {
                   required
                 >
                   <option value="">Selecione um recurso</option>
+
                   {recursos.map((recurso) => (
                     <option key={recurso.id} value={recurso.id}>
                       {recurso.codigo} - {recurso.nome}
@@ -468,21 +387,8 @@ export default function Status() {
             </div>
 
             <div className={styles.avisoHorario}>
-              Confira a disponibilidade do recurso. As regras de horário e
-              conflito também devem ser validadas pelo servidor.
+              Confira a disponibilidade antes de reservar.
             </div>
-
-            {mensagem && (
-              <div className={styles.mensagemSucesso} role="status">
-                {mensagem}
-              </div>
-            )}
-
-            {erro && (
-              <div className={styles.mensagemErro} role="alert">
-                {erro}
-              </div>
-            )}
 
             <div className={styles.acoesFormulario}>
               <button
@@ -502,7 +408,6 @@ export default function Status() {
                   className={styles.botaoSecundario}
                   type="button"
                   onClick={limparFormulario}
-                  disabled={enviando}
                 >
                   Cancelar edição
                 </button>
@@ -522,24 +427,12 @@ export default function Status() {
           <button
             type="button"
             className={styles.botaoSecundario}
-            onClick={() => void carregarReservas()}
+            onClick={carregarReservas}
             disabled={carregando}
           >
             {carregando ? "Atualizando..." : "Atualizar lista"}
           </button>
         </div>
-
-        {erro && (
-          <div className={styles.mensagemErro} role="alert">
-            {erro}
-          </div>
-        )}
-
-        {mensagem && (
-          <div className={styles.mensagemSucesso} role="status">
-            {mensagem}
-          </div>
-        )}
 
         {carregando ? (
           <div className={styles.estadoVazio}>Carregando reservas...</div>
@@ -550,88 +443,75 @@ export default function Status() {
           </div>
         ) : (
           <div className={styles.listaReservas}>
-            {dados.map((reserva) => {
-              const recurso =
-                reserva.idSala !== null
-                  ? `Sala: ${reserva.nomeSala ?? reserva.codigoSala ?? reserva.idSala}`
-                  : `Laboratório: ${
-                      reserva.nomeLaboratorio ??
-                      reserva.codigoLaboratorio ??
-                      reserva.idLaboratorio ??
-                      "Não informado"
-                    }`;
+            {dados.map((reserva) => (
+              <article
+                className={styles.cartaoReserva}
+                key={reserva.id}
+              >
+                <div className={styles.linhaCartao}>
+                  <div className={styles.iconeRecurso}>🏢</div>
 
-              return (
-                <article
-                  className={styles.cartaoReserva}
-                  key={reserva.id}
-                >
-                  <div className={styles.linhaCartao}>
-                    <div className={styles.iconeRecurso} aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                        <rect x="3" y="4" width="18" height="16" rx="2" />
-                        <path d="M8 4v16M16 4v16M3 9h5M16 9h5M3 15h5M16 15h5" />
-                      </svg>
-                    </div>
-
-                    <div className={styles.informacaoRecurso}>
-                      <h3>{recurso}</h3>
-                      <p>Reserva #{reserva.id}</p>
-                    </div>
-
-                    <span className={styles.status}>
-                      {reserva.statusReserva || "Sem status"}
-                    </span>
+                  <div className={styles.informacaoRecurso}>
+                    <h3>
+                      {reserva.idSala !== null
+                        ? "Sala: " + (reserva.nomeSala || reserva.codigoSala)
+                        : "Laboratório: " +
+                          (reserva.nomeLaboratorio ||
+                            reserva.codigoLaboratorio)}
+                    </h3>
+                    <p>Reserva #{reserva.id}</p>
                   </div>
 
-                  <div className={styles.detalhesReserva}>
-                    <div className={styles.detalhe}>
-                      <span className={styles.rotuloDetalhe}>Início</span>
-                      <span>{formatarDataHora(reserva.inicio)}</span>
-                    </div>
+                  <span className={styles.status}>
+                    {reserva.statusReserva || "Sem status"}
+                  </span>
+                </div>
 
-                    <div className={styles.detalhe}>
-                      <span className={styles.rotuloDetalhe}>Término</span>
-                      <span>{formatarDataHora(reserva.fim)}</span>
-                    </div>
-
-                    <div className={styles.detalhe}>
-                      <span className={styles.rotuloDetalhe}>Responsável</span>
-                      <span>
-                        {reserva.nomeUsuario || `Usuário #${reserva.idUsuario}`}
-                      </span>
-                    </div>
+                <div className={styles.detalhesReserva}>
+                  <div className={styles.detalhe}>
+                    <span className={styles.rotuloDetalhe}>Início</span>
+                    <span>{formatarDataHora(reserva.inicio)}</span>
                   </div>
 
-                  {ehProfessor && (
-                    <div className={styles.acoesReserva}>
-                      <button
-                        type="button"
-                        className={styles.botaoEditar}
-                        onClick={() => editarReserva(reserva)}
-                        disabled={enviando || excluindo !== null}
-                      >
-                        Editar
-                      </button>
+                  <div className={styles.detalhe}>
+                    <span className={styles.rotuloDetalhe}>Término</span>
+                    <span>{formatarDataHora(reserva.fim)}</span>
+                  </div>
 
-                      <button
-                        type="button"
-                        className={styles.botaoExcluir}
-                        onClick={() => void excluirReserva(reserva.id)}
-                        disabled={enviando || excluindo !== null}
-                      >
-                        {excluindo === reserva.id ? "Excluindo..." : "Excluir"}
-                      </button>
-                    </div>
-                  )}
+                  <div className={styles.detalhe}>
+                    <span className={styles.rotuloDetalhe}>Responsável</span>
+                    <span>{reserva.nomeUsuario}</span>
+                  </div>
+                </div>
 
-                  <footer className={styles.rodapeCartao}>
-                    <span>Reserva #{reserva.id}</span>
-                    <span>Consulte a disponibilidade antes de reservar novamente.</span>
-                  </footer>
-                </article>
-              );
-            })}
+                {ehProfessor && (
+                  <div className={styles.acoesReserva}>
+                    <button
+                      type="button"
+                      className={styles.botaoEditar}
+                      onClick={() => editarReserva(reserva)}
+                      disabled={enviando || excluindo}
+                    >
+                      Editar
+                    </button>
+
+                    <button
+                      type="button"
+                      className={styles.botaoExcluir}
+                      onClick={() => excluirReserva(reserva.id)}
+                      disabled={enviando || excluindo}
+                    >
+                      {excluindo ? "Excluindo..." : "Excluir"}
+                    </button>
+                  </div>
+                )}
+
+                <footer className={styles.rodapeCartao}>
+                  <span>Reserva #{reserva.id}</span>
+                  <span>Consulte a disponibilidade antes de reservar.</span>
+                </footer>
+              </article>
+            ))}
           </div>
         )}
       </section>

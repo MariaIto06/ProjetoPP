@@ -93,10 +93,18 @@ class SalaController {
             return res.status(200).json({
                 message: "Sala excluída com sucesso!"
             });
+
         } catch (erro) {
-            console.error(erro);
+            if (erro.number === 547) {
+                return res.status(409).json({
+                    message: "Esta sala possui reservas vinculadas e não pode ser excluída."
+                });
+            }
+
+            console.error("Erro ao excluir sala:", erro);
+
             return res.status(500).json({
-                message: "Não foi possível excluir a sala. Verifique se ela possui reservas."
+                message: "Erro interno ao excluir sala."
             });
         }
     }

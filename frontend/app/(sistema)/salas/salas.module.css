@@ -85,6 +85,19 @@
     border-color 0.2s ease;
 }
 
+.botoesAcao {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.botoesAcao .botaoSecundario {
+  width: auto;
+}
+
 .botao:hover {
   background: #fa0160;
   border-color: #f4f6fc;

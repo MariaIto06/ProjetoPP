@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
@@ -416,30 +415,24 @@ export default function Salas() {
                 </p>
 
                 {ehProfessor && (
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "10px",
-                      marginTop: "12px",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      className={estilos.botaoSecundario}
-                      onClick={() => editarSala(sala)}
-                    >
-                      Editar
-                    </button>
+              <div className={estilos.botoesAcao}>
+                <button
+                  type="button"
+                  className={estilos.botao}
+                  onClick={() => editarSala(sala)}
+                >
+                  Editar
+                </button>
 
-                    <button
-                      type="button"
-                      className={estilos.botaoSecundario}
-                      onClick={() => excluirSala(sala.id)}
-                    >
-                      Excluir
-                    </button>
-                  </div>
-                )}
+                <button
+                  type="button"
+                  className={estilos.botao}
+                  onClick={() => excluirSala(sala.id)}
+                >
+                  Excluir
+                </button>
+              </div>
+            )}
               </article>
             ))}
           </div>

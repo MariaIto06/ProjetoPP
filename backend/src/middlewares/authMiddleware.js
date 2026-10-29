@@ -1,6 +1,8 @@
-import jwt from "jsonwebtoken";
 
-const autenticar = (req, res, next) => {
+import jwt from "jsonwebtoken";
+import Usuario from "../models/Usuario.js";
+
+const autenticar = async (req, res, next) => {
     const cabecalho = req.headers.authorization;
 
     if (!cabecalho || !cabecalho.startsWith("Bearer ")) {
@@ -11,18 +13,46 @@ const autenticar = (req, res, next) => {
 
     const token = cabecalho.split(" ")[1];
 
-    try {
-        const dados = jwt.verify(
-            token,
-            process.env.JWT_SECRET
-        );
+    let dados;
 
-        req.usuario = dados;
+    try {
+        dados = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+        return res.status(401).json({
+            message: "Token inválido ou expirado"
+        });
+    }
+
+    const idUsuario = Number(dados.id);
+
+    if (!Number.isInteger(idUsuario) || idUsuario <= 0) {
+        return res.status(401).json({
+            message: "Token inválido"
+        });
+    }
+
+    try {
+        // Consultar o perfil atualizado no banco
+        const usuario = await Usuario.buscarPorId(idUsuario);
+
+        if (!usuario) {
+            return res.status(401).json({
+                message: "Usuário não encontrado"
+            });
+        }
+
+        // Usar as permissões atuais, não as antigas do token
+        req.usuario = {
+            id: usuario.id,
+            tipoUsuario: usuario.tipoUsuario
+        };
 
         next();
     } catch (erro) {
-        return res.status(401).json({
-            message: "Token inválido ou expirado"
+        console.error("Erro ao verificar usuário:", erro);
+
+        return res.status(500).json({
+            message: "Falha ao verificar as permissões do usuário"
         });
     }
 };

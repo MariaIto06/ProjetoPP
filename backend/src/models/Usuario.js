@@ -18,9 +18,12 @@ class Usuario {
     static async buscarTodos() {
         const conexao = await conectaBD();
 
-        const result = await conexao.request().query(
-            "SELECT id, cpf, nome, datanascimento, celular, email, login, datacadastro FROM reservas.usuario"
-        );
+        const result = await conexao.request().query(`
+            SELECT
+                id, cpf, nome, datanascimento, celular,
+                email, login, datacadastro, tipoUsuario
+            FROM reservas.usuario
+        `);
 
         return result.recordset;
     }
@@ -76,6 +79,37 @@ class Usuario {
                     (@cpf, @nome, @datanascimento, @celular, @email, @login, @senha, @tipoUsuario)
             `);
     }
+
+    static async alterarPerfil(id, tipoUsuario) {
+        const conexao = await conectaBD();
+
+        const resultado = await conexao.request()
+            .input("id", mssql.Int, id)
+            .input("tipoUsuario", mssql.VarChar(20), tipoUsuario)
+            .query(`
+                UPDATE reservas.usuario
+                SET tipoUsuario = @tipoUsuario
+                WHERE id = @id
+            `);
+
+        return resultado.rowsAffected[0] > 0;
+    }
+
+    
+    static async buscarPorId(id) {
+        const conexao = await conectaBD();
+
+        const resultado = await conexao.request()
+            .input("id", mssql.Int, id)
+            .query(`
+                SELECT id, tipoUsuario
+                FROM reservas.usuario
+                WHERE id = @id
+            `);
+
+        return resultado.recordset[0] ?? null;
+    }
+
 }
 
 export default Usuario;

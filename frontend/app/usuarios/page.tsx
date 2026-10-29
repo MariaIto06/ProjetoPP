@@ -1,18 +1,21 @@
+
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import estilos from "./usuarios.module.css";
 
-
 export default function Usuario() {
+  const router = useRouter();
+
   const [cadastrando, setCadastrando] = useState(false);
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState("");
 
-
   async function cadastrar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
+
     setErro("");
     setSucesso("");
 
@@ -25,15 +28,9 @@ export default function Usuario() {
       datanascimento: String(
         formularioDados.get("datanascimento") ?? ""
       ),
-      celular: String(
-        formularioDados.get("celular") ?? ""
-      ).trim(),
-      email: String(
-        formularioDados.get("email") ?? ""
-      ).trim(),
-      login: String(
-        formularioDados.get("login") ?? ""
-      ).trim(),
+      celular: String(formularioDados.get("celular") ?? "").trim(),
+      email: String(formularioDados.get("email") ?? "").trim(),
+      login: String(formularioDados.get("login") ?? "").trim(),
       senha: String(formularioDados.get("senha") ?? ""),
     };
 
@@ -50,10 +47,10 @@ export default function Usuario() {
       return;
     }
 
-
     setCadastrando(true);
 
     try {
+      // Primeiro, cadastra o usuário
       const resposta = await fetch(
         "http://localhost:8080/usuario",
         {
@@ -67,18 +64,6 @@ export default function Usuario() {
 
       const resultado = await resposta.json().catch(() => ({}));
 
-      if (resposta.status === 401) {
-        throw new Error(
-          "Sua sessão expirou. Faça login novamente."
-        );
-      }
-
-      if (resposta.status === 403) {
-        throw new Error(
-          "Você não tem permissão para cadastrar usuários."
-        );
-      }
-
       if (!resposta.ok) {
         throw new Error(
           resultado.message ||
@@ -86,8 +71,36 @@ export default function Usuario() {
         );
       }
 
-    formulario.reset();
-    setSucesso("Cadastro realizado com sucesso! Agora você pode fazer login.");
+      // Depois, faz login automaticamente
+      const respostaLogin = await fetch(
+        "http://localhost:8080",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            login: novoUsuario.login,
+            senha: novoUsuario.senha,
+          }),
+        }
+      );
+
+      const resultadoLogin = await respostaLogin.json().catch(() => ({}));
+
+      if (!respostaLogin.ok || !resultadoLogin.token) {
+        setSucesso(
+          "Cadastro realizado com sucesso! Faça login para continuar."
+        );
+        formulario.reset();
+        return;
+      }
+
+      // Guarda o token, igual à página de login
+      sessionStorage.setItem("token", resultadoLogin.token);
+
+      // Entra no sistema
+      router.push("/laboratorio");
 
     } catch (erro) {
       console.error("Erro ao cadastrar usuário:", erro);
@@ -200,6 +213,7 @@ export default function Usuario() {
               {erro}
             </div>
           )}
+
           {sucesso && (
             <p role="status">{sucesso}</p>
           )}
@@ -209,17 +223,15 @@ export default function Usuario() {
             className={estilos.botao}
             disabled={cadastrando}
           >
-            {cadastrando ? "Cadastrando..." : "Cadastrar"}
+            {cadastrando ? "Aguarde..." : "Cadastrar"}
           </button>
         </form>
+
         <p>
-          Já tem uma conta? <Link href="/">Voltar para o login</Link>
+          Já tem uma conta?{" "}
+          <Link href="/">Voltar para o login</Link>
         </p>
       </section>
-
-      
     </main>
   );
 }
-
-

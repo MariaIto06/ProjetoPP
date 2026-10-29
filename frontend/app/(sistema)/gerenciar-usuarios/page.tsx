@@ -5,6 +5,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import estilos from "../../usuarios/usuarios.module.css";
 
+type Perfil = "aluno" | "professor" | "administrador";
+type PerfilEditavel = "aluno" | "professor";
+
 interface Usuario {
   id: number;
   cpf: string;
@@ -14,17 +17,25 @@ interface Usuario {
   email: string;
   login: string;
   datacadastro: string;
+  tipoUsuario: Perfil;
 }
 
-type Perfil = "aluno" | "professor";
-
-function obterPerfil(token: string): string | null {
+function obterPerfil(token: string): Perfil | null {
   try {
     const payload = token.split(".")[1];
     const dados = JSON.parse(
       atob(payload.replace(/-/g, "+").replace(/_/g, "/"))
     );
-    return dados.tipoUsuario ?? null;
+
+    if (
+      dados.tipoUsuario === "aluno" ||
+      dados.tipoUsuario === "professor" ||
+      dados.tipoUsuario === "administrador"
+    ) {
+      return dados.tipoUsuario;
+    }
+
+    return null;
   } catch {
     return null;
   }
@@ -34,12 +45,13 @@ export default function GerenciarUsuarios() {
   const router = useRouter();
 
   const [autorizado, setAutorizado] = useState(false);
+  const [ehAdministrador, setEhAdministrador] = useState(false);
   const [dados, setDados] = useState<Usuario[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [cadastrando, setCadastrando] = useState(false);
+  const [alterandoId, setAlterandoId] = useState<number | null>(null);
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState("");
-  const [tipoUsuario, setTipoUsuario] = useState<Perfil>("aluno");
 
   async function carregarUsuarios(token: string) {
     setCarregando(true);
@@ -59,7 +71,9 @@ export default function GerenciarUsuarios() {
       }
 
       if (resposta.status === 403) {
-        throw new Error("Acesso permitido apenas para professores.");
+        throw new Error(
+          "Você não tem permissão para consultar usuários."
+        );
       }
 
       if (!resposta.ok) {
@@ -87,12 +101,16 @@ export default function GerenciarUsuarios() {
       return;
     }
 
-    if (obterPerfil(token) !== "professor") {
+    const perfil = obterPerfil(token);
+
+    if (perfil !== "professor" && perfil !== "administrador") {
       router.replace("/laboratorio");
       return;
     }
 
+    setEhAdministrador(perfil === "administrador");
     setAutorizado(true);
+
     void carregarUsuarios(token);
   }, [router]);
 
@@ -102,9 +120,13 @@ export default function GerenciarUsuarios() {
     setSucesso("");
 
     const token = sessionStorage.getItem("token");
+    const perfil = token ? obterPerfil(token) : null;
 
-    if (!token || obterPerfil(token) !== "professor") {
-      setErro("Acesso permitido apenas para professores.");
+    if (
+      !token ||
+      (perfil !== "professor" && perfil !== "administrador")
+    ) {
+      setErro("Você não tem permissão para cadastrar usuários.");
       return;
     }
 
@@ -121,7 +143,6 @@ export default function GerenciarUsuarios() {
       email: String(formularioDados.get("email") ?? "").trim(),
       login: String(formularioDados.get("login") ?? "").trim(),
       senha: String(formularioDados.get("senha") ?? ""),
-      tipoUsuario,
     };
 
     if (Object.values(novoUsuario).some((valor) => !valor)) {
@@ -148,13 +169,12 @@ export default function GerenciarUsuarios() {
 
       if (!resposta.ok) {
         throw new Error(
-          resultado.message || "Não foi possível cadastrar o usuário."
+          resultado.message || "Não foi possível cadastrar o aluno."
         );
       }
 
       formulario.reset();
-      setTipoUsuario("aluno");
-      setSucesso("Usuário cadastrado com sucesso!");
+      setSucesso("Aluno cadastrado com sucesso!");
       await carregarUsuarios(token);
     } catch (erro) {
       setErro(
@@ -167,8 +187,83 @@ export default function GerenciarUsuarios() {
     }
   }
 
+  async function alterarPerfil(
+    id: number,
+    tipoUsuario: PerfilEditavel
+  ) {
+    const token = sessionStorage.getItem("token");
+
+    if (!token || !ehAdministrador) {
+      setErro("Você não tem permissão para alterar perfis.");
+      return;
+    }
+
+    const usuario = dados.find((item) => item.id === id);
+
+    if (!usuario) {
+      setErro("Usuário não encontrado na lista.");
+      return;
+    }
+
+    if (usuario.tipoUsuario === "administrador") {
+      setErro("Não é possível alterar administradores por esta página.");
+      return;
+    }
+
+    if (usuario.tipoUsuario === tipoUsuario) {
+      return;
+    }
+
+    const confirmar = window.confirm(
+      `Deseja alterar o perfil de ${usuario.nome} para ${tipoUsuario}?`
+    );
+
+    if (!confirmar) return;
+
+    setErro("");
+    setSucesso("");
+    setAlterandoId(id);
+
+    try {
+      const resposta = await fetch(
+        `http://localhost:8080/usuarios/${id}/perfil`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ tipoUsuario }),
+        }
+      );
+
+      const resultado = await resposta.json().catch(() => ({}));
+
+      if (!resposta.ok) {
+        throw new Error(
+          resultado.message || "Não foi possível alterar o perfil."
+        );
+      }
+
+      setSucesso(`Perfil de ${usuario.nome} atualizado com sucesso!`);
+      await carregarUsuarios(token);
+    } catch (erro) {
+      setErro(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível conectar ao servidor."
+      );
+    } finally {
+      setAlterandoId(null);
+    }
+  }
+
   if (!autorizado) {
-    return <main className={estilos.pagina}>Verificando acesso...</main>;
+    return (
+      <main className={estilos.pagina}>
+        Verificando acesso...
+      </main>
+    );
   }
 
   return (
@@ -176,7 +271,11 @@ export default function GerenciarUsuarios() {
       <h1 className={estilos.titulo}>Gerenciar usuários</h1>
 
       <section className={estilos.container}>
-        <h2>Cadastrar usuário</h2>
+        <h2>Cadastrar aluno</h2>
+        <p>
+          Professores e administradores podem cadastrar novos alunos.
+          Somente administradores podem alterar os perfis depois.
+        </p>
 
         <form onSubmit={cadastrar}>
           <div className={estilos.campo}>
@@ -191,7 +290,7 @@ export default function GerenciarUsuarios() {
           </div>
 
           <div className={estilos.campo}>
-            <label htmlFor="nome">Nome completo</label>
+            <label htmlFor="nome">Nome</label>
             <input
               id="nome"
               name="nome"
@@ -202,7 +301,9 @@ export default function GerenciarUsuarios() {
           </div>
 
           <div className={estilos.campo}>
-            <label htmlFor="datanascimento">Data de nascimento</label>
+            <label htmlFor="datanascimento">
+              Data de nascimento
+            </label>
             <input
               id="datanascimento"
               name="datanascimento"
@@ -256,22 +357,6 @@ export default function GerenciarUsuarios() {
             />
           </div>
 
-          <div className={estilos.campo}>
-            <label htmlFor="tipoUsuario">Tipo de usuário</label>
-            <select
-              id="tipoUsuario"
-              name="tipoUsuario"
-              className={estilos.input}
-              value={tipoUsuario}
-              onChange={(evento) =>
-                setTipoUsuario(evento.target.value as Perfil)
-              }
-            >
-              <option value="aluno">Aluno</option>
-              <option value="professor">Professor</option>
-            </select>
-          </div>
-
           {erro && (
             <div className={estilos.mensagemErro} role="alert">
               {erro}
@@ -285,7 +370,7 @@ export default function GerenciarUsuarios() {
             className={estilos.botao}
             disabled={cadastrando}
           >
-            {cadastrando ? "Cadastrando..." : "Cadastrar"}
+            {cadastrando ? "Cadastrando..." : "Cadastrar aluno"}
           </button>
         </form>
       </section>
@@ -293,8 +378,13 @@ export default function GerenciarUsuarios() {
       <section>
         <div className={estilos.cabecalhoLista}>
           <div>
-            <h2 className={estilos.titulo}>Usuários cadastrados</h2>
-            <p>Lista disponível somente para professores.</p>
+            <h2 className={estilos.titulo}>
+              Usuários cadastrados
+            </h2>
+            <p>
+              Professores podem consultar os usuários.
+              Administradores também podem alterar perfis.
+            </p>
           </div>
 
           <button
@@ -321,15 +411,81 @@ export default function GerenciarUsuarios() {
         ) : (
           <div className={estilos.lista}>
             {dados.map((registro) => (
-              <article key={registro.id} className={estilos.card}>
+              <article
+                key={registro.id}
+                className={estilos.card}
+              >
                 <h3>{registro.nome}</h3>
+
                 <p><strong>ID:</strong> {registro.id}</p>
                 <p><strong>CPF:</strong> {registro.cpf}</p>
-                <p><strong>Nascimento:</strong> {registro.datanascimento}</p>
-                <p><strong>Celular:</strong> {registro.celular}</p>
-                <p><strong>E-mail:</strong> {registro.email}</p>
-                <p><strong>Login:</strong> {registro.login}</p>
-                <p><strong>Data de cadastro:</strong> {registro.datacadastro}</p>
+                <p>
+                  <strong>Nascimento:</strong>{" "}
+                  {registro.datanascimento}
+                </p>
+                <p>
+                  <strong>Celular:</strong> {registro.celular}
+                </p>
+                <p>
+                  <strong>E-mail:</strong> {registro.email}
+                </p>
+                <p>
+                  <strong>Login:</strong> {registro.login}
+                </p>
+                <p>
+                  <strong>Data de cadastro:</strong>{" "}
+                  {registro.datacadastro}
+                </p>
+                <p>
+                  <strong>Perfil:</strong>{" "}
+                  {registro.tipoUsuario === "administrador"
+                    ? "Administrador"
+                    : registro.tipoUsuario === "professor"
+                      ? "Professor"
+                      : "Aluno"}
+                </p>
+
+                {ehAdministrador &&
+                  registro.tipoUsuario !== "administrador" && (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "10px",
+                        flexWrap: "wrap",
+                        marginTop: "12px",
+                      }}
+                    >
+                      {registro.tipoUsuario !== "professor" && (
+                        <button
+                          type="button"
+                          className={estilos.botaoSecundario}
+                          disabled={alterandoId !== null}
+                          onClick={() =>
+                            alterarPerfil(registro.id, "professor")
+                          }
+                        >
+                          {alterandoId === registro.id
+                            ? "Alterando..."
+                            : "Tornar professor"}
+                        </button>
+                      )}
+
+                      {registro.tipoUsuario !== "aluno" && (
+                        <button
+                          type="button"
+                          className={estilos.botaoSecundario}
+                          disabled={alterandoId !== null}
+                          onClick={() =>
+                            alterarPerfil(registro.id, "aluno")
+                          }
+                        >
+                          {alterandoId === registro.id
+                            ? "Alterando..."
+                            : "Tornar aluno"}
+                        </button>
+                      )}
+                    </div>
+                  )}
               </article>
             ))}
           </div>

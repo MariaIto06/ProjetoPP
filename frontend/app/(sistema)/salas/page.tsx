@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
@@ -16,7 +17,10 @@ export default function Salas() {
   const [carregando, setCarregando] = useState(true);
   const [cadastrando, setCadastrando] = useState(false);
   const [erro, setErro] = useState("");
+  const [sucesso, setSucesso] = useState("");
   const [ehProfessor, setEhProfessor] = useState(false);
+
+  const [salaEditando, setSalaEditando] = useState<number | null>(null);
 
   function verificarPerfil() {
     const token = sessionStorage.getItem("token");
@@ -41,7 +45,10 @@ export default function Salas() {
 
       const usuario = JSON.parse(atob(preenchido));
 
-      setEhProfessor(usuario.tipoUsuario === "professor");
+      setEhProfessor(
+        usuario.tipoUsuario === "professor" ||
+        usuario.tipoUsuario === "administrador"
+      );
     } catch {
       setEhProfessor(false);
     }
@@ -49,7 +56,6 @@ export default function Salas() {
 
   async function carregarSalas() {
     setCarregando(true);
-    setErro("");
 
     try {
       const resposta = await fetch("http://localhost:8080/salas");
@@ -78,13 +84,45 @@ export default function Salas() {
     void carregarSalas();
   }, []);
 
+  function editarSala(sala: Salas) {
+    setSalaEditando(sala.id);
+    setErro("");
+    setSucesso("");
+
+    const codigo = document.getElementById("codigo") as HTMLInputElement;
+    const nome = document.getElementById("nome") as HTMLInputElement;
+    const capacidade = document.getElementById("capacidade") as HTMLInputElement;
+    const localizacao = document.getElementById("localizacao") as HTMLInputElement;
+
+    if (codigo && nome && capacidade && localizacao) {
+      codigo.value = sala.codigo;
+      nome.value = sala.nome;
+      capacidade.value = String(sala.capacidade);
+      localizacao.value = sala.localizacao;
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelarEdicao() {
+    setSalaEditando(null);
+    setErro("");
+
+    const formulario = document.getElementById(
+      "formularioSala"
+    ) as HTMLFormElement;
+
+    formulario?.reset();
+  }
+
   async function cadastrar(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
 
     setErro("");
+    setSucesso("");
 
     if (!ehProfessor) {
-      setErro("Apenas professores podem cadastrar salas.");
+      setErro("Apenas professores e administradores podem salvar salas.");
       return;
     }
 
@@ -119,8 +157,14 @@ export default function Salas() {
     setCadastrando(true);
 
     try {
-      const resposta = await fetch("http://localhost:8080/sala", {
-        method: "POST",
+      const editando = salaEditando !== null;
+
+      const url = editando
+        ? `http://localhost:8080/sala/${salaEditando}`
+        : "http://localhost:8080/sala";
+
+      const resposta = await fetch(url, {
+        method: editando ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -135,21 +179,29 @@ export default function Salas() {
       }
 
       if (resposta.status === 403) {
-        setErro("Apenas professores podem cadastrar salas.");
-        return;
+        throw new Error(
+          "Apenas professores e administradores podem salvar salas."
+        );
       }
 
       if (!resposta.ok) {
         throw new Error(
-          resultado.message || "Não foi possível cadastrar a sala."
+          resultado.message || "Não foi possível salvar a sala."
         );
       }
 
       formulario.reset();
+      setSalaEditando(null);
 
       await carregarSalas();
+
+      setSucesso(
+        editando
+          ? "Sala atualizada com sucesso!"
+          : "Sala cadastrada com sucesso!"
+      );
     } catch (erro) {
-      console.error("Erro ao cadastrar sala:", erro);
+      console.error("Erro ao salvar sala:", erro);
 
       setErro(
         erro instanceof Error
@@ -161,16 +213,79 @@ export default function Salas() {
     }
   }
 
+  async function excluirSala(id: number) {
+    if (!ehProfessor) {
+      setErro("Você não tem permissão para excluir salas.");
+      return;
+    }
+
+    const confirmar = window.confirm(
+      "Tem certeza que deseja excluir esta sala?"
+    );
+
+    if (!confirmar) return;
+
+    const token = sessionStorage.getItem("token");
+
+    if (!token) {
+      setErro("Você precisa fazer login novamente.");
+      return;
+    }
+
+    setErro("");
+    setSucesso("");
+
+    try {
+      const resposta = await fetch(
+        `http://localhost:8080/sala/${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const resultado = await resposta.json().catch(() => ({}));
+
+      if (!resposta.ok) {
+        throw new Error(
+          resultado.message || "Não foi possível excluir a sala."
+        );
+      }
+
+      if (salaEditando === id) {
+        cancelarEdicao();
+      }
+
+      await carregarSalas();
+      setSucesso("Sala excluída com sucesso!");
+    } catch (erro) {
+      console.error("Erro ao excluir sala:", erro);
+
+      setErro(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível conectar ao servidor."
+      );
+    }
+  }
+
   return (
     <main className={estilos.pagina}>
       <h1 className={estilos.titulo}>Cadastro de Salas</h1>
 
       {ehProfessor && (
         <section className={estilos.container}>
-          <form onSubmit={cadastrar}>
+          <h2>
+            {salaEditando !== null
+              ? "Editar sala"
+              : "Cadastrar sala"}
+          </h2>
+
+          <form id="formularioSala" onSubmit={cadastrar}>
             <div className={estilos.campo}>
               <label htmlFor="codigo">Código</label>
-
               <input
                 id="codigo"
                 name="codigo"
@@ -182,7 +297,6 @@ export default function Salas() {
 
             <div className={estilos.campo}>
               <label htmlFor="nome">Nome</label>
-
               <input
                 id="nome"
                 name="nome"
@@ -194,7 +308,6 @@ export default function Salas() {
 
             <div className={estilos.campo}>
               <label htmlFor="capacidade">Capacidade</label>
-
               <input
                 id="capacidade"
                 name="capacidade"
@@ -208,7 +321,6 @@ export default function Salas() {
 
             <div className={estilos.campo}>
               <label htmlFor="localizacao">Localização</label>
-
               <input
                 id="localizacao"
                 name="localizacao"
@@ -224,13 +336,29 @@ export default function Salas() {
               </div>
             )}
 
+            {sucesso && <p role="status">{sucesso}</p>}
+
             <button
               type="submit"
               className={estilos.botao}
               disabled={cadastrando}
             >
-              {cadastrando ? "Cadastrando..." : "Cadastrar"}
+              {cadastrando
+                ? "Salvando..."
+                : salaEditando !== null
+                  ? "Salvar alterações"
+                  : "Cadastrar"}
             </button>
+
+            {salaEditando !== null && (
+              <button
+                type="button"
+                className={estilos.botaoSecundario}
+                onClick={cancelarEdicao}
+              >
+                Cancelar edição
+              </button>
+            )}
           </form>
         </section>
       )}
@@ -239,7 +367,6 @@ export default function Salas() {
         <div className={estilos.cabecalhoReservas}>
           <div>
             <h2 className={estilos.titulo}>Salas cadastradas</h2>
-
             <p>
               Consulte os códigos, as capacidades e as localizações das salas.
             </p>
@@ -287,6 +414,32 @@ export default function Salas() {
                 <p>
                   <strong>Localização:</strong> {sala.localizacao}
                 </p>
+
+                {ehProfessor && (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "10px",
+                      marginTop: "12px",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className={estilos.botaoSecundario}
+                      onClick={() => editarSala(sala)}
+                    >
+                      Editar
+                    </button>
+
+                    <button
+                      type="button"
+                      className={estilos.botaoSecundario}
+                      onClick={() => excluirSala(sala.id)}
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                )}
               </article>
             ))}
           </div>
@@ -295,4 +448,3 @@ export default function Salas() {
     </main>
   );
 }
-

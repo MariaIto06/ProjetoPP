@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -37,9 +38,12 @@ export function Header() {
                         <Link href="/laboratorio">Laboratórios</Link>
                     </li>
 
-                    {tipoUsuario === "professor" && (
+                    {(tipoUsuario === "professor" ||
+                      tipoUsuario === "administrador") && (
                         <li>
-                            <Link href="/gerenciar-usuarios">Usuários</Link>
+                            <Link href="/gerenciar-usuarios">
+                                Usuários
+                            </Link>
                         </li>
                     )}
 

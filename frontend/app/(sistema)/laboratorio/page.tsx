@@ -44,7 +44,10 @@ export default function Laboratorio() {
 
       const usuario = JSON.parse(atob(preenchido));
 
-      setEhProfessor(usuario.tipoUsuario === "professor");
+      setEhProfessor(
+        usuario.tipoUsuario === "professor" ||
+        usuario.tipoUsuario === "administrador"
+      );
     } catch {
       setEhProfessor(false);
     }

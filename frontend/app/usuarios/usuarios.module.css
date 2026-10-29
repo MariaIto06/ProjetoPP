@@ -1,9 +1,10 @@
-
 .pagina {
   width: min(1100px, 100%);
   margin: 0 auto;
   padding: 36px 24px 56px;
   color: #172033;
+  background-color: #f8c1c1;
+  border-radius: 10px;
 }
 
 .titulo {
@@ -12,13 +13,17 @@
   font-size: 30px;
   font-weight: 800;
   letter-spacing: -0.6px;
+  text-align: center;
 }
 
 .container {
-  margin-bottom: 36px;
+  width: 70%;
+  max-width: 550px;
+  box-sizing: border-box;
+  margin: 0 auto 36px;
   padding: 26px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: #e69191;
+  border: 1px solid #eb178b;
   border-radius: 16px;
   box-shadow: 0 4px 18px rgb(15 23 42 / 4%);
 }
@@ -65,7 +70,7 @@
   min-height: 42px;
   padding: 0 18px;
   color: #ffffff;
-  background: #2563eb;
+  background: #f72929;
   border: 1px solid #2563eb;
   border-radius: 9px;
   font-family: inherit;
@@ -78,14 +83,17 @@
 }
 
 .botao:hover {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
+  background: #fa0160;
+  border-color: #f4f6fc;
 }
 
 .botao:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+
+
 
 .lista {
   display: grid;
@@ -97,7 +105,7 @@
 .card {
   min-width: 0;
   padding: 22px;
-  background: #ffffff;
+  background: #f0dddd;
   border: 1px solid #e2e8f0;
   border-radius: 14px;
   box-shadow: 0 3px 12px rgb(15 23 42 / 3%);

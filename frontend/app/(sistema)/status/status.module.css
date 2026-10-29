@@ -3,6 +3,8 @@
   margin: 0 auto;
   padding: 36px 24px 56px;
   color: #172033;
+  background-color: #f8c1c1;
+  border-radius: 10px ;
 }
 
 .cabecalho {
@@ -56,7 +58,7 @@
 .painel {
   margin-bottom: 36px;
   padding: 26px;
-  background: #ffffff;
+  background: #e69191;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
   box-shadow: 0 4px 18px rgb(15 23 42 / 4%);
@@ -187,13 +189,13 @@
 
 .botaoPrincipal {
   color: #ffffff;
-  background: #2563eb;
-  border-color: #2563eb;
+  background: #f72929;
+  border: 1px solid #2563eb;
 }
 
 .botaoPrincipal:hover {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
+ background: #fa0160;
+  border-color: #f4f6fc;
 }
 
 .botaoSecundario {
@@ -278,7 +280,7 @@
 .cartaoReserva {
   min-width: 0;
   padding: 20px;
-  background: #ffffff;
+  background: #f0dddd;
   border: 1px solid #e2e8f0;
   border-radius: 14px;
   box-shadow: 0 3px 12px rgb(15 23 42 / 3%);

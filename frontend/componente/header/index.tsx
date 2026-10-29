@@ -48,7 +48,7 @@ export function Header() {
                     </li>
 
                     <li>
-                        <Link href="/status">Status</Link>
+                        <Link href="/status">Reservas</Link>
                     </li>
                 </ul>
             </nav>

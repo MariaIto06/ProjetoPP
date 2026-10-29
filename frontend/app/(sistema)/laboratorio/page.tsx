@@ -529,8 +529,8 @@ export default function Laboratorio() {
                   {registro.localizacao}
                 </p>
 
-                {ehProfessor && (
-                  <>
+          {ehProfessor && (
+                  <div className={estilos.botoesAcao}>
                     <button
                       type="button"
                       className={estilos.botaoSecundario}
@@ -546,7 +546,7 @@ export default function Laboratorio() {
                     >
                       Excluir
                     </button>
-                  </>
+                  </div>
                 )}
               </article>
             ))}

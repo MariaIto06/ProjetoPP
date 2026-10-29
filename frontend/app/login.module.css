@@ -7,14 +7,16 @@
   padding: 32px 20px;
   background: #f4f7fb;
   color: #172b4d;
+  background-color: #f8c1c1;
+  
 }
 
 .cartaoLogin {
   width: 100%;
   max-width: 440px;
   padding: 36px;
-  background: #ffffff;
-  border: 1px solid #e1e7ef;
+  background: #fce1e1;
+  border: 1px solid #f30186;
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(23, 43, 77, 0.08);
 }
@@ -70,7 +72,7 @@
 }
 
 .input::placeholder {
-  color: #94a3b8;
+  color: #f05bd0;
 }
 
 .input:focus {
@@ -92,7 +94,8 @@
 }
 
 .botao:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: #fa0160;
+  border-color: #f4f6fc;
 }
 
 .botao:disabled {
@@ -126,10 +129,10 @@
 
 .botaoSecundario {
   padding: 10px 16px;
-  border: 1px solid #2563eb;
+  border: 1px solid #eb25d1;
   border-radius: 7px;
-  background: #ffffff;
-  color: #2563eb;
+  background: #5600f5;
+  color: #f7f9fd;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -137,7 +140,8 @@
 }
 
 .botaoSecundario:hover {
-  background: #eff6ff;
+  background: #fa0160;
+  border-color: #f4f6fc;
 }
 
 @media (max-width: 480px) {

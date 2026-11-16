@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API de Filmes</title>
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+  <main>
+    <h1>Cadastro de Filmes</h1>
+    <p>API de Filmes — Node.js, Express e SQL Server</p>
+    <form id="formFilme">
+      <label>Título <input id="titulo" required maxlength="150"></label>
+      <label>Diretor <input id="diretor" required maxlength="100"></label>
+      <label>Categoria <select id="categoria_id" required><option value="">Carregando categorias...</option></select></label>
+      <label>Ano de lançamento <input id="ano_lancamento" type="number" min="1"></label>
+      <label>Duração (minutos) <input id="duracao_minutos" type="number" min="1"></label>
+      <button type="submit">Cadastrar filme</button>
+    </form>
+    <p id="mensagem" role="status"></p>
+    <h2>Filmes cadastrados</h2>
+    <button id="atualizar" type="button">Atualizar lista</button>
+    <table><thead><tr><th>ID</th><th>Título</th><th>Categoria</th><th>Diretor</th><th>Ano</th><th>Duração</th></tr></thead><tbody id="listaFilmes"></tbody></table>
+  </main>
+  <script>
+    const mensagem = document.getElementById('mensagem');
+    async function carregarCategorias() {
+      try {
+        const resposta = await fetch('/api/categorias');
+        if (!resposta.ok) throw new Error('Falha ao carregar categorias');
+        const categorias = await resposta.json();
+        const select = document.getElementById('categoria_id');
+        select.innerHTML = '<option value="">Selecione</option>';
+        categorias.forEach(categoria => {
+          const opcao = document.createElement('option');
+          opcao.value = categoria.id;
+          opcao.textContent = categoria.nome;
+          select.appendChild(opcao);
+        });
+      } catch (erro) { mensagem.textContent = erro.message; }
+    }
+    async function carregarFilmes() {
+      try {
+        const resposta = await fetch('/api/filmes');
+        if (!resposta.ok) throw new Error('Falha ao carregar filmes. Confira a conexão com o SQL Server.');
+        const filmes = await resposta.json();
+        const tabela = document.getElementById('listaFilmes');
+        tabela.innerHTML = '';
+        filmes.forEach(filme => {
+          const linha = document.createElement('tr');
+          [filme.id, filme.titulo, filme.categoria, filme.diretor, filme.ano_lancamento ?? '-', filme.duracao_minutos ?? '-'].forEach(valor => {
+            const celula = document.createElement('td');
+            celula.textContent = valor;
+            linha.appendChild(celula);
+          });
+          tabela.appendChild(linha);
+        });
+      } catch (erro) { mensagem.textContent = erro.message; }
+    }
+    document.getElementById('formFilme').addEventListener('submit', async (evento) => {
+      evento.preventDefault();
+      const dados = {
+        titulo: document.getElementById('titulo').value,
+        diretor: document.getElementById('diretor').value,
+        categoria_id: Number(document.getElementById('categoria_id').value),
+        ano_lancamento: document.getElementById('ano_lancamento').value || null,
+        duracao_minutos: document.getElementById('duracao_minutos').value || null
+      };
+      try {
+        const resposta = await fetch('/api/filmes', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados)
+        });
+        const resultado = await resposta.json();
+        if (!resposta.ok) throw new Error(resultado.erro || 'Erro ao cadastrar');
+        mensagem.textContent = resultado.mensagem;
+        evento.target.reset();
+        await carregarFilmes();
+      } catch (erro) { mensagem.textContent = erro.message; }
+    });
+    document.getElementById('atualizar').addEventListener('click', carregarFilmes);
+    carregarCategorias();
+    carregarFilmes();
+  </script>
+</body>
+</html>
